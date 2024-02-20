@@ -1,0 +1,2 @@
+#! tile  band  depth exptime gain SGiq  Nstars_acc seeing  eff_area weight_thresh
+ CFIS.270.299  r  24.22 402  16.489567  0.00 80  0.77  0.01  0.013078
