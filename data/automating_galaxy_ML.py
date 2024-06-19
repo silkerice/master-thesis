@@ -90,7 +90,7 @@ def prepare_data(filename_SL, filename_random, IMG_SIZE, hdu = 0, keys = ['NAXIS
     #put together
     data = np.concatenate((np.array(data_SL), np.array(data_random ))) 
     fitsNames = fitsNames_SL + fitsNames_random
-
+    print('concetanate successful')
     #normalize and make positive
     data = normalize_data(make_data_positive(data))
 
@@ -102,7 +102,9 @@ def prepare_data(filename_SL, filename_random, IMG_SIZE, hdu = 0, keys = ['NAXIS
     
     #create labels
     n = len(fitsNames)
-    labels = create_labels(n, fitsNames)
+    nsl = len(fitsNames_SL)
+    #labels = create_labels(n, fitsNames)
+    labels = np.concatenate((np.ones(nsl), np.zeros(n-nsl)))
     labels_tensor = tf.convert_to_tensor(labels, dtype=tf.int32)
     
     #create dataset
@@ -192,14 +194,14 @@ def perform_ML(filename_SL, filename_random, IMG_SIZE, hdu=0, keys = ['NAXIS', '
 
     model.summary()
 
-    epochs = 50  # in paper 200, but keras can adjust it if necessary
+    epochs = 20  # in paper 200, but keras can adjust it if necessary
     hist = model.fit(ds_train, epochs=epochs, validation_data=ds_test, verbose=2)
 
     def plot_hist(hist):
         plt.plot(hist.history["accuracy"])
         #does not work:
         plt.plot(hist.history["val_accuracy"])
-        plt.title("model accuracy")
+        plt.title("model accuracy - simulated SL")
         plt.ylabel("accuracy")
         plt.xlabel("epoch")
         plt.legend(["train", "validation"], loc="upper left")
@@ -209,12 +211,14 @@ def perform_ML(filename_SL, filename_random, IMG_SIZE, hdu=0, keys = ['NAXIS', '
     
 
 #tests
-filename_SL='./SL_cutouts/*.fits'
-filename_random='./andom_cutouts/*.fits'
+#filename_SL='./SL_cutouts/*.fits'
+#filename_random='./andom_cutouts/*.fits'
+filename_SL = './flat_theta_e_mocks_90k/*.fits'
+filename_random = './randomcutouts2/*.fits'
 IMG_SIZE = 224
 visual_test=visual_test(filename_SL, filename_random, IMG_SIZE)
 
-#perform_ML(filename_SL, filename_random, IMG_SIZE)
+perform_ML(filename_SL, filename_random, IMG_SIZE)
 
     
     

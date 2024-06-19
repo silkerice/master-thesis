@@ -19,6 +19,7 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.datasets import make_classification
 from sklearn.svm import LinearSVC
 from sklearn.utils import Bunch
+from sklearn.metrics import roc_auc_score
 
 from skimage.transform import resize
 #-------------------------------------------------------------------------------------
@@ -86,7 +87,7 @@ def create_labels(n, fitsNames):
     return(labels)
 
 #------------------------------------------------------------------------------------
-filename_SL='./SL_sim+real/*.fits'
+filename_SL='./flat_theta_e_mocks_90k/*.fits'
 filename_random='./randomcutouts2/*.fits'
 IMG_SIZE = 224
 hdu=0
@@ -96,6 +97,7 @@ keys =['NAXIS', 'FILTER']
 #prepare data
 
 #read data
+'''
 data_SL, fitsNames_SL = get_data_from_file(filename_SL, hdu=hdu, keys=keys) #, hdu, keys
 data_random, fitsNames_random = get_data_from_file(filename_random, hdu=hdu, keys=keys)
 
@@ -117,12 +119,25 @@ fitsNames = fitsNames_SL + fitsNames_random
 
 #normalize and make positive
 data = normalize_data(make_data_positive(data))
+'''
 
+#filename is a string, stronglens is 1 or 0
+data_SL, fitsNames_SL = get_data_from_file(filename_SL, hdu=hdu, keys=keys) #, hdu, keys
+data_random, fitsNames_random = get_data_from_file(filename_random, hdu=hdu, keys=keys)
+#put together
+data = np.concatenate((np.array(data_SL), np.array(data_random ))) 
+fitsNames = fitsNames_SL + fitsNames_random
+print('concetanate successful')
 #normalize and make positive
 data = normalize_data(make_data_positive(data))
 
-n = len(data[:]) 
-labels = create_labels(n, fitsNames)
+
+#create labels
+n = len(fitsNames)
+nsl = len(fitsNames_SL)
+#labels = create_labels(n, fitsNames)
+labels = np.concatenate((np.ones(nsl), np.zeros(n-nsl)))
+#labels_tensor = tf.convert_to_tensor(labels, dtype=tf.int32)
 
 #create bunch object
 bunchobject = Bunch(images = data, targets = labels)
@@ -195,7 +210,7 @@ print(
 )
 
 #---------------------------------------------------------------------------------
-#calibration of classifiers
+#calibration of classifiers - SYNTHETIC!!
 
 #dataset
 #synthetic binary classification dataset with 100,000 samples and 20 features. 
@@ -295,8 +310,12 @@ plt.tight_layout()
 plt.show()
 
 
+#---------------------------------------------------------------------------------
+#compute AUC 
 
+auc = roc_auc_score(y_true, y_pred)
 
+print("AUC:", auc)
 
 
 
