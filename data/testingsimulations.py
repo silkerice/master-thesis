@@ -10,6 +10,7 @@ import numpy as np
 from astropy.io import fits
 import glob
 from astropy.io import fits as pyfits
+from astropy.io import fits
 
 
 #----------------------------------------------------------------------------------------------
@@ -100,38 +101,7 @@ plt.tight_layout()  # Adjust layout
 fig.suptitle('example simulations',y=1.05, fontsize = 20)
 plt.show()
 
-#SL simulation too perfect 
+#---------------------------------------------------------------------------------------
+head1 = fits.getheader('Lens_simulations/106.fits')
 
-# Create a 3x3 grid of subplots
-fig, axes = plt.subplots(3,3, figsize=(10, 10))
-perf = np.array([0,88,12,71,69,33,39,40,52])
 
-# Plot each image in the grid\=
-for i, ax in enumerate(axes.flat):
-    if i < len(data_SL):
-        index = perf[i]
-        img = data_SL[index]
-        img_norm = (img - img.min()) / (img.max() - img.min())  # Normalize image
-        ax.imshow(np.log1p(img_norm), cmap='gray')  # Use grayscale colormap
-    ax.axis('off')  # Turn off axis
-    
-plt.tight_layout()  # Adjust layout
-fig.suptitle('No SL features?',y=1.05, fontsize = 20)
-plt.show()
-
-# Create a 3x3 grid of subplots
-fig, axes = plt.subplots(3,3, figsize=(10, 10))
-perf = np.array([17,97,24,27,30,50,64,65,70])
-
-# Plot each image in the grid\=
-for i, ax in enumerate(axes.flat):
-    if i < len(data_SL):
-        index = perf[i]
-        img = data_SL[index]
-        img_norm = (img - img.min()) / (img.max() - img.min())  # Normalize image
-        ax.imshow(np.log1p(img_norm), cmap='gray')  # Use grayscale colormap
-    ax.axis('off')  # Turn off axis
-    
-plt.tight_layout()  # Adjust layout
-fig.suptitle('Too perfect?',y=1.05, fontsize = 20)
-plt.show()

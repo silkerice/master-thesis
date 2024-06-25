@@ -34,7 +34,8 @@ from sklearn.datasets import make_classification
 from sklearn.svm import LinearSVC
 from sklearn.utils import Bunch
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, auc
+from sklearn.metrics import roc_curve
 from sklearn.calibration import calibration_curve
 
 #----------------------------------------------------------------------------------------------
@@ -160,7 +161,7 @@ def prepare_data(filename_SL, filename_random, IMG_SIZE, hdu = 0, keys = ['NAXIS
 #----------------------------------------------------------------------------------------------
 #filename_SL = './flat_theta_e_mocks_90k/*.fits'
 filename_SL = './selected_objects_4_stefan/*.fits'
-filename_random = './randomcutouts2/41/*.fits'
+filename_random = './randomcutouts2/21/*.fits'
 IMG_SIZE = 224
 hdu = 0
 keys = ['NAXIS', 'FILTER']
@@ -334,15 +335,32 @@ print(
 #----------------------------------------------------------------------------------------------
 #AUC calculation
 
-auc = roc_auc_score(y_true, y_pred)
+auc_value = roc_auc_score(y_true, y_pred)
 
-print("AUC:", auc)
+print("AUC:", auc_value)
 
 #print the confusion matrix
 disp = metrics.ConfusionMatrixDisplay.from_predictions(y_test, predicted)
-disp.figure_.suptitle(f"Confusion Matrix - AUC = {auc}, Accuracy = {accuracy}")
+disp.figure_.suptitle(f"Confusion Matrix - AUC = {auc_value}, Accuracy = {accuracy}")
 print(f"Confusion matrix:\n{disp.confusion_matrix}")
 
+plt.show()
+
+y_scores = svm_model.predict_proba(X_test_flattened)[:, 1]
+
+fpr, tpr, thresholds = roc_curve(y_test, y_scores)
+
+roc_auc = auc(fpr, tpr)
+
+plt.figure()
+plt.plot(fpr, tpr, color='magenta', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
+plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver Operating Characteristic (ROC)')
+plt.legend(loc="lower right")
 plt.show()
 
 #----------------------------------------------------------------------------------------------
@@ -486,29 +504,5 @@ fpr = fpr(fp,tn)
 
 print('False positive rate: ', fpr)
 
-#----------------------------------------------------------------------------------------------
-
-
-# Define a function to increase contrast
-def increase_contrast(image, factor=1.5):
-    mean = np.mean(image, axis=(0, 1), keepdims=True)
-    return np.clip((image - mean) * factor + mean, 0, 1)
-
-
-plt.clf()
-
-#img = false_pos[8]
-img = X_test[6]
-
-# Increase contrast of the example image
-enhanced_example = increase_contrast(img, factor=2)
-img = enhanced_example
-img_norm = (img - img.min()) / (img.max() - img.min())  # Normalize image
-plt.imshow(img[:,:,0], cmap = 'gray')  # Use grayscale colormap
-#plt.title("False negative", fontsize=16)
-plt.axis('off') 
-# Save the plot to a file
-plt.savefig('plot.png', bbox_inches='tight')  # Save as a PNG file
-plt.show()
 
 

@@ -27,6 +27,8 @@ from tensorflow.keras.applications import EfficientNetB0
 
 from skimage.transform import resize
 
+from sklearn.metrics import roc_curve, auc
+
 # Function to apply histogram equalization
 def equalize_histogram(image):
     image_np = image.numpy()  # Convert from tensor to numpy
@@ -228,7 +230,7 @@ def perform_ML(filename_SL, filename_random, IMG_SIZE, hdu=0, keys = ['NAXIS', '
 
     model.summary()
 
-    epochs = 50  # in paper 200, but keras can adjust it if necessary
+    epochs = 20  # in paper 200, but keras can adjust it if necessary
     hist = model.fit(ds_train, epochs=epochs, validation_data=ds_test, verbose=2)
 
     rgb1 = (255/255, 109/255, 196/255)
@@ -248,37 +250,45 @@ def perform_ML(filename_SL, filename_random, IMG_SIZE, hdu=0, keys = ['NAXIS', '
         
     plot_hist(hist)
     
-    '''
-    #------------------------calculate fpr and confusion matrix -------------------------
-    # Step 1: Make predictions
-    y_pred = model.predict(ds_test)
-    y_pred_classes = tf.argmax(y_pred, axis=1) 
-    #find labels
-    # Extract labels from the training set
-    train_labels = ds_train.map(lambda image, label: label)
+    return(hist, ds_test, model)
 
-    # Step 2: Compute confusion matrix
-    y_true =  train_labels # True labels
-    y_true_arr = np.array([element for element in tfds.as_numpy(y_true)])
-    from sklearn.metrics import confusion_matrix
-     # Convert predicted probabilities to classes
-    conf_matrix = confusion_matrix(y_true_arr, y_pred_classes)
-
-    # Step 3: Extract FP and TN
-    FP = conf_matrix[0][1]  # False positives
-    TN = conf_matrix[0][0]  # True negatives
-
-        # Step 4: Compute FPR
-    FPR = FP / (FP + TN)
-    print("False Positive Rate:", FPR)
-    '''
-
+def predictY(ds_test,model):
     
-    return(hist)
+    X_test_list = []
+    y_test_list = []
+
+    for batch in ds_test:
+        X_batch, y_batch = batch
+        X_test_list.append(X_batch.numpy())
+        y_test_list.append(y_batch.numpy())
+
+    # Concatenate all batches to form the complete test sets
+    X_test = np.concatenate(X_test_list, axis=0)
+    y_test = np.concatenate(y_test_list, axis=0)
+    
+    y_pred = model.predict(X_test)
+
+    return(y_test, y_pred)
+
+def plot_roc_curve(y_test, y_pred):
+    fpr, tpr, thresholds = roc_curve(y_test[:, 0], y_pred[:, 0])
+    roc_auc = auc(fpr, tpr)
+    
+    plt.figure()
+    plt.plot(fpr, tpr, color='darkorange', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
+    plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('Receiver Operating Characteristic (ROC) - Class 0 - CNN')
+    plt.legend(loc="lower right")
+    plt.show()
+    
     
 
 #tests
-filename_random = './randomcutouts2/41/*.fits'
+filename_random = './randomcutouts2/21/*.fits'
 filename_SL = './selected_objects_4_stefan/*.fits'
 
 IMG_SIZE = 224
@@ -286,7 +296,7 @@ visual_test=visual_test(filename_SL, filename_random, IMG_SIZE)
 
 
 #perform_ML(filename_SL, filename_random, IMG_SIZE)
-hist = perform_ML(filename_SL, filename_random, IMG_SIZE)
+hist,ds_test,model = perform_ML(filename_SL, filename_random, IMG_SIZE)
 
 rgb1 = (255/255, 109/255, 196/255)
 rgb2 = (147/255, 14/255, 103/255)
@@ -294,7 +304,6 @@ rgb3 = (0,6/255/100,48/100)
 rgb4 = (0,167/255, 1)
 def plot_hist(hist):
         plt.plot(hist.history["accuracy"], color = rgb2)
-        #does not work:
         plt.plot(hist.history["val_accuracy"], color = rgb1)
         plt.title("CNN Accuracy", fontsize=18)
         plt.ylabel("Accuracy", fontsize=14)
@@ -307,6 +316,11 @@ def plot_hist(hist):
         
 plot_hist(hist)
 
+#------------------------ AUC curve -------------------------
+# Compute the ROC curve and AUC for class 0
+y_test,y_pred = predictY(ds_test,model)
+plot_roc_curve(y_test,y_pred)
+
 # Record the end time
 end_time = time.time()
 
@@ -317,6 +331,5 @@ print("Elapsed time:", elapsed_time, "seconds")
 
 
 
-    
-    
+
     

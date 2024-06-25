@@ -33,8 +33,9 @@ from sklearn.datasets import make_classification
 from sklearn.svm import LinearSVC
 from sklearn.utils import Bunch
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import roc_auc_score
 from sklearn.calibration import calibration_curve
+from sklearn.metrics import roc_auc_score, auc
+from sklearn.metrics import roc_curve
 
 #----------------------------------------------------------------------------------------------
 
@@ -46,7 +47,6 @@ def make_data_positive(data):
         minimum= np.min(data[i,:,:])
         eps = 0.0001
         data[i,:,:]=data[i,:,:]+abs(minimum)+eps
-        print(data[i,:,:])
     
     #set all negative pixels to zero
     #data[data<0] =0
@@ -147,7 +147,7 @@ def prepare_data(filename_SL, filename_random, IMG_SIZE, hdu = 0, keys = ['NAXIS
 
 #----------------------------------------------------------------------------------------------
 filename_SL ='./Lens_simulations/*.fits'
-filename_random = './randomcutouts2/41/*.fits'
+filename_random = './randomcutouts2/21/*.fits'
 IMG_SIZE = 224
 hdu = 0
 keys = ['NAXIS', 'FILTER']
@@ -159,7 +159,6 @@ NUM_CLASSES = 2
 #filename is a string, stronglens is 1 or 0
 data_SL, fitsNames_SL = get_data_from_file(filename_SL, hdu=hdu, keys=keys) #, hdu, keys
 data_random, fitsNames_random = get_data_from_file(filename_random, hdu=hdu, keys=keys)
-
 
 for i in range(len(data_random)):
     arr = data_random[i]
@@ -330,9 +329,33 @@ print(
 #----------------------------------------------------------------------------------------------
 #AUC calculation
 
-auc = roc_auc_score(y_true, y_pred)
+auc_value = roc_auc_score(y_true, y_pred)
 
-print("AUC:", auc)
+print("AUC:", auc_value)
+
+#print the confusion matrix
+disp = metrics.ConfusionMatrixDisplay.from_predictions(y_test, predicted)
+disp.figure_.suptitle(f"Confusion Matrix - AUC = {auc_value}, Accuracy = {accuracy}")
+print(f"Confusion matrix:\n{disp.confusion_matrix}")
+
+plt.show()
+
+y_scores = svm_model.predict_proba(X_test_flattened)[:, 1]
+
+fpr, tpr, thresholds = roc_curve(y_test, y_scores)
+
+roc_auc = auc(fpr, tpr)
+
+plt.figure()
+plt.plot(fpr, tpr, color='magenta', lw=2, label='ROC curve (area = %0.3f)' % roc_auc)
+plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('ROC curve')
+plt.legend(loc="lower right")
+plt.show()
 
 #----------------------------------------------------------------------------------------------
 #calibration of classifiers

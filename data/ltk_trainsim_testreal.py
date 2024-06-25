@@ -11,7 +11,6 @@ import numpy as np
 from astropy.io import fits
 import glob
 from astropy.io import fits as pyfits
-import cv2
 
 #tensor packages
 from tensorflow import keras
@@ -34,25 +33,12 @@ from sklearn.datasets import make_classification
 from sklearn.svm import LinearSVC
 from sklearn.utils import Bunch
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import roc_auc_score
-from sklearn.calibration import calibration_curve
 from sklearn.calibration import calibration_curve
 from sklearn.metrics import roc_auc_score, auc
 from sklearn.metrics import roc_curve
+
 #----------------------------------------------------------------------------------------------
 
-# Function to apply histogram equalization
-def equalize_histogram(image):
-    image_np = image
-    # Ensure image is in the range [0, 255] and type uint8
-    image_np = (image_np * 255).astype(np.uint8)
-    # Convert to grayscale if the image is not already in grayscale
-    if len(image_np.shape) == 3 and image_np.shape[-1] == 3:
-        image_np = cv2.cvtColor(image_np, cv2.COLOR_RGB2GRAY)
-    equalized_image = cv2.equalizeHist(image_np)
-    
-    return equalized_image
-    
 def make_data_positive(data):
     #data can be list or array
     #convert to np.arrays
@@ -160,9 +146,10 @@ def prepare_data(filename_SL, filename_random, IMG_SIZE, hdu = 0, keys = ['NAXIS
     return(ds_train, ds_test)
 
 #----------------------------------------------------------------------------------------------
-filename_SL_sim = './Lens_simulations/*.fits'
+#----------------------------------------------------------------------------------------------
+filename_SL ='./Lens_simulations/*.fits'
+filename_random = './randomcutouts2/41/*.fits'
 filename_SL_real = './selected_objects_4_stefan/*.fits'
-filename_random = './randomcutouts2/21/*.fits'
 IMG_SIZE = 224
 hdu = 0
 keys = ['NAXIS', 'FILTER']
@@ -171,65 +158,74 @@ NUM_CLASSES = 2
 
 #----------------------------------------------------------------------------------------------
 
-#filename is a string, stronglens is 1 or 0
-data_SL_real, fitsNames_SL_real = get_data_from_file(filename_SL_real, hdu=hdu, keys=keys) #, hdu, keys
-data_SL_sim, fitsNames_SL_sim = get_data_from_file(filename_SL_sim, hdu=hdu, keys=keys) #, hdu, keys
+# filename is a string, stronglens is 1 or 0
+data_SL, fitsNames_SL = get_data_from_file(filename_SL, hdu=hdu, keys=keys) #, hdu, keys
 data_random, fitsNames_random = get_data_from_file(filename_random, hdu=hdu, keys=keys)
-
+data_SL_real, fitsNames_SL_real = get_data_from_file(filename_SL_real, hdu=hdu, keys=keys) 
 
 for i in range(len(data_random)):
     arr = data_random[i]
-    data_random[i]=arr[10:54, 10:54]
+    data_random[i] = arr[10:54, 10:54]
     
 for i in range(len(data_SL_real)):
     arr2 = data_SL_real[i]
     data_SL_real[i] = arr2[10:54, 10:54]
+        
+# Split data_random into two parts: one for training and one for testing
+split_index = int(0.8 * len(data_random))
+data_random_train = data_random[:split_index]
+fitsNames_random_train = fitsNames_random[:split_index]
 
-r_real = 250
-r_sim = 250
-#put together
-data = np.concatenate((np.array(data_SL_sim[0:r_sim]), np.array(data_SL_real[0:r_real]), np.array(data_random ))) 
-fitsNames = fitsNames_SL_sim[0:r_sim]+fitsNames_SL_real[0:r_real] + fitsNames_random
-print('concetanate successful')
-#normalize and make positive
-data = normalize_data(make_data_positive(data))
+data_random_test = data_random[split_index:]
+fitsNames_random_test = fitsNames_random[split_index:]
 
-#convert to rgb
-data = grayscale_to_rgb(data)
+# Combine data for training: data_SL + data_random_train
+data_train = np.concatenate((np.array(data_SL), np.array(data_random_train))) 
+fitsNames_train = fitsNames_SL + fitsNames_random_train
 
-#create labels
-n = len(fitsNames)
-nsl = r_real+r_sim
-print('non sl simulations length', n-nsl)
-print('SL length',nsl)
+# Normalize and make positive
+data_train = normalize_data(make_data_positive(data_train))
 
-labels = np.concatenate((np.ones(nsl), np.zeros(n-nsl)))
+# Convert to rgb
+data_train = grayscale_to_rgb(data_train)
 
-#create bunch object
-bunchobject = Bunch(images = data, targets = labels)
+# Create labels for training
+n_train = len(fitsNames_train)
+nsl_train = len(fitsNames_SL)
+labels_train = np.concatenate((np.ones(nsl_train), np.zeros(n_train - nsl_train)))
 
-#shuffle data
-combined_data = list(zip(bunchobject.images, bunchobject.targets))
+# Create bunch object for training
+bunchobject_train = Bunch(images=data_train, targets=labels_train)
 
-# Shuffle the combined data
-np.random.shuffle(combined_data)
+# Shuffle training data
+combined_train_data = list(zip(bunchobject_train.images, bunchobject_train.targets))
+np.random.shuffle(combined_train_data)
+shuffled_train_images, shuffled_train_targets = zip(*combined_train_data)
+shuffled_train_data = Bunch(images=np.array(shuffled_train_images), targets=np.array(shuffled_train_targets))
 
-# Split the shuffled data back into images and targets
-shuffled_images, shuffled_targets = zip(*combined_data)
+# Normalize the test data and make positive
+data_SL_real = normalize_data(make_data_positive(data_SL_real))
+data_random_test = normalize_data(make_data_positive(data_random_test))
 
-# Create a new Bunch object with shuffled data
-shuffled_data = Bunch(images=np.array(shuffled_images), targets=np.array(shuffled_targets))
+# Convert test data to rgb
+data_SL_real = grayscale_to_rgb(data_SL_real)
+data_random_test = grayscale_to_rgb(data_random_test)
 
+# Combine data for testing: data_SL_real + data_random_test
+data_test = np.concatenate((np.array(data_SL_real), np.array(data_random_test)))
+fitsNames_test = fitsNames_SL_real + fitsNames_random_test
 
-#----------------------------------------------------------------------------------------------
-# Assuming you have your data and labels prepared
+# Create labels for test data
+nsl_test = len(fitsNames_SL_real)
+n_test = len(fitsNames_test)
+labels_test = np.concatenate((np.ones(nsl_test), np.zeros(n_test - nsl_test)))
 
-# Split data into training and testing sets
-X_train, X_test, y_train, y_test = train_test_split(shuffled_data.images, shuffled_data.targets, test_size=0.2, random_state=42)
+# Create bunch object for test data
+bunchobject_test = Bunch(images=data_test, targets=labels_test)
 
-# Normalize the pixel values to be between 0 and 1
-X_train = X_train / 255.0
-X_test = X_test / 255.0
+# Normalize pixel values to be between 0 and 1
+X_train = shuffled_train_data.images / 255.0
+X_test = bunchobject_test.images / 255.0
 
 # Rescale the images to match the input shape of the model
 X_train_rescaled = tf.image.resize(X_train, (IMG_SIZE, IMG_SIZE))
@@ -238,9 +234,7 @@ X_test_rescaled = tf.image.resize(X_test, (IMG_SIZE, IMG_SIZE))
 print("Shape of X_train_rescaled:", X_train_rescaled.shape)
 print("Shape of X_test_rescaled:", X_test_rescaled.shape)
 
-
 # Define your TensorFlow model
-
 model = Sequential([
     layers.Rescaling(1.0/255, input_shape=(IMG_SIZE, IMG_SIZE, 3)),
     layers.Conv2D(16, 3, padding='same', activation='relu'),
@@ -254,8 +248,6 @@ model = Sequential([
     layers.Conv2D(128, 3, padding='same', activation='relu'),
     layers.MaxPooling2D(),
     layers.Flatten(),
-    #layers.Dense(128, activation='relu'),
-    #layers.Dense(NUM_CLASSES)
 ])
 
 # Compile the model
@@ -275,7 +267,6 @@ if last_conv_layer is None:
 else:
     print(last_conv_layer)
     
-
 # Define the pre-flattening part of the model
 pre_flattening_model = Model(inputs=model.input, outputs=last_conv_layer.output)
 
@@ -290,51 +281,38 @@ X_test_flattened = X_test_conv.reshape(X_test_conv.shape[0], -1)
 # Now, you can use X_train_flattened and X_test_flattened as inputs to your scikit-learn model
 
 # Let's use a simple Support Vector Machine (SVM) as an example
-svm_model = svm.SVC(probability = True)
+svm_model = svm.SVC(probability=True)
 
-#use gaussian
-#svm_model = GaussianNB()
+# use naief bayes
+# svm_model = GaussianNB()
 
-#use random forest
-#svm_model = RandomForestClassifier()
+# use random forest
+# svm_model = RandomForestClassifier()
 
-#logistic regression
-#svm_model= LogisticRegression()
-svm_model.fit(X_train_flattened, y_train)
+# logistic regression
+# svm_model= LogisticRegression()
+svm_model.fit(X_train_flattened, shuffled_train_data.targets)
 
 # Evaluate the model
-accuracy = svm_model.score(X_test_flattened, y_test)
+accuracy = svm_model.score(X_test_flattened, bunchobject_test.targets)
 print("Accuracy:", accuracy)
 
 #----------------------------------------------------------------------------------------------
 y_pred = svm_model.predict(X_test_flattened)
-originalpred = y_pred
 
-# Predict the value of the digit on the test subset
-predicted = svm_model.predict(X_test_flattened)
-
-print(f"Classification report for classifier {svm_model}:\n"
-    f"{metrics.classification_report(y_test, predicted)}\n")
-
-
-#print the confusion matrix
-disp = metrics.ConfusionMatrixDisplay.from_predictions(y_test, predicted)
-disp.figure_.suptitle("Confusion Matrix ")
+# Generate the confusion matrix
+disp = metrics.ConfusionMatrixDisplay.from_predictions(bunchobject_test.targets, y_pred)
+disp.figure_.suptitle("Confusion Matrix - Real data")
 print(f"Confusion matrix:\n{disp.confusion_matrix}")
 
 plt.show()
-
-#If the results from evaluating a classifier are stored in the form of a confusion 
-#matrix and not in terms of y_true and y_pred, one can still build a 
-#classification_report as follows:
 
 # The ground truth and predicted lists
 y_true = []
 y_pred = []
 cm = disp.confusion_matrix
 
-# For each cell in the confusion matrix, add the corresponding ground truths
-# and predictions to the lists
+# For each cell in the confusion matrix, add the corresponding ground truths and predictions to the lists
 for gt in range(len(cm)):
     for pred in range(len(cm)):
         y_true += [gt] * cm[gt][pred]
@@ -345,20 +323,19 @@ print(
     f"{metrics.classification_report(y_true, y_pred)}\n"
 )
 
+
+
+
+
 #----------------------------------------------------------------------------------------------
 #AUC calculation
 
+y_test= bunchobject_test.targets
+# Predict the value of the digit on the test subset
 
 auc_value = roc_auc_score(y_true, y_pred)
 
 print("AUC:", auc_value)
-
-#print the confusion matrix
-disp = metrics.ConfusionMatrixDisplay.from_predictions(y_test, predicted)
-disp.figure_.suptitle(f"Confusion Matrix - AUC = {auc_value}, Accuracy = {accuracy}")
-print(f"Confusion matrix:\n{disp.confusion_matrix}")
-
-plt.show()
 
 y_scores = svm_model.predict_proba(X_test_flattened)[:, 1]
 
@@ -367,13 +344,13 @@ fpr, tpr, thresholds = roc_curve(y_test, y_scores)
 roc_auc = auc(fpr, tpr)
 
 plt.figure()
-plt.plot(fpr, tpr, color='magenta', lw=2, label='ROC curve (area = 0.884)' )
+plt.plot(fpr, tpr, color='magenta', lw=2, label='ROC curve (area = 0.827)')
 plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
 plt.xlim([0.0, 1.0])
 plt.ylim([0.0, 1.05])
 plt.xlabel('False Positive Rate')
 plt.ylabel('True Positive Rate')
-plt.title('Receiver Operating Characteristic (ROC)')
+plt.title('AUC curve')
 plt.legend(loc="lower right")
 plt.show()
 
@@ -430,20 +407,9 @@ print("Elapsed time:", elapsed_time, "seconds")
 #----------------------------------------------------------------------------------------------
 #find false positives
 
-diff = [x-y for x, y in zip(y_test, originalpred)] #THIS CHANGED!!
-#diff = [x-y for x, y in zip(y_true, y_pred)] 
+diff = [x-y for x, y in zip(y_true, y_pred)]
 false_pos_index  = [i for i, x in enumerate(diff) if x == -1]
 false_pos = X_test[false_pos_index]
-#find probability of being strong lens for each image
-prob_pos_diff=prob_pos[false_pos_index]
-
-#find rank
-l = sorted(prob_pos)
-rank = []
-#search which index in list 
-for i in range(len(prob_pos_diff)):
-    index = l.index(prob_pos_diff[i])
-    rank.append(index)
 
 #plot
 # Get the first 9 images
@@ -456,35 +422,21 @@ fig, axes = plt.subplots(3, 3, figsize=(10, 10))
 for i, ax in enumerate(axes.flat):
     if i < len(false_pos):
         img = false_pos[i]
-        
         img_norm = (img - img.min()) / (img.max() - img.min())  # Normalize image
-        #img_norm = np.log1p(img_norm)
         ax.imshow(img_norm, cmap='gray')  # Use grayscale colormap
-        ax.set_title(f" Prob of SL:{ np.round(prob_pos_diff[i],2)}, rank = {rank[i]}", fontsize=16)
-    ax.axis('off')  # Turn off axis
+        ax.set_title(f" Rank = {i+false_pos_index[0]}",fontsize=18)
+    #ax.axis('off')  # Turn off axis
     
 plt.tight_layout()  # Adjust layout
-cutoff = cm[0,0]+cm[0,1]
-fig.suptitle(f'False positive examples, cutoff = {cutoff}',y=1.05, fontsize = 20)
+fig.suptitle('False positive examples',y=1.05, fontsize = 20)
 plt.show()
 
 #----------------------------------------------------------------------------------------------
 #find false negatives
 
-diff = [x-y for x, y in zip(originalpred, y_test)] #THIS CHANGED!!
-#diff = [x-y for x, y in zip(y_pred, y_true)]
+diff = [x-y for x, y in zip(y_pred, y_true)]
 false_neg_index  = [i for i, x in enumerate(diff) if x == -1]
 false_neg = X_test[false_neg_index]
-#find probability of being strong lens for each image
-prob_pos_diff=prob_pos[false_neg_index]
-
-#find rank
-l = sorted(prob_pos)
-rank = []
-#search which index in list 
-for i in range(len(prob_pos_diff)):
-    index = l.index(prob_pos_diff[i])
-    rank.append(index)
 
 #plot
 # Get the first 9 images
@@ -499,14 +451,15 @@ for i, ax in enumerate(axes.flat):
         img = false_neg[i]
         img_norm = (img - img.min()) / (img.max() - img.min())  # Normalize image
         ax.imshow(img_norm, cmap='gray')  # Use grayscale colormap
-        ax.set_title(f" Prob of SL:{ np.round(prob_pos_diff[i],2)}, rank = {rank[i]}", fontsize=16)
-    ax.axis('off')  # Turn off axis
+        ax.set_title(f" Rank = {i+false_neg_index[0]}",fontsize=18)
+    #ax.axis('off')  # Turn off axis
     
 plt.tight_layout()  # Adjust layout
-cutoff = cm[0,0]+cm[0,1]
-fig.suptitle(f'False negative examples, cutoff = {cutoff}',y=1.05, fontsize = 20)
+fig.suptitle('False negative examples',y=1.05, fontsize = 20)
 plt.show()
 
+
+#----------------------------------------------------------------------------------------------
 
 def fpr(fp, tn):
     fpr = fp/(tn+fp)
@@ -517,30 +470,3 @@ tn = y_true.count(0)
 fpr = fpr(fp,tn)
 
 print('False positive rate: ', fpr)
-
-#----------------------------------------------------------------------------------------------
-
-
-# Define a function to increase contrast
-def increase_contrast(image, factor=1.5):
-    mean = np.mean(image, axis=(0, 1), keepdims=True)
-    return np.clip((image - mean) * factor + mean, 0, 1)
-
-
-plt.clf()
-
-#img = false_pos[8]
-img = X_test[6]
-
-# Increase contrast of the example image
-enhanced_example = increase_contrast(img, factor=2)
-img = enhanced_example
-img_norm = (img - img.min()) / (img.max() - img.min())  # Normalize image
-plt.imshow(img[:,:,0], cmap = 'gray')  # Use grayscale colormap
-#plt.title("False negative", fontsize=16)
-plt.axis('off') 
-# Save the plot to a file
-plt.savefig('plot.png', bbox_inches='tight')  # Save as a PNG file
-plt.show()
-
-

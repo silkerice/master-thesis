@@ -97,3 +97,6 @@ plt.tight_layout()
 
 # Show the plot
 plt.show()
+
+#---------------------------------------------------------------------------------------
+head1 = fits.getheader('selected_objects_4_stefan/WDR3_candID2017253021765_r.fits')
