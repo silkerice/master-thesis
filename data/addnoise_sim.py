@@ -1,3 +1,6 @@
+
+#-------------------------------------------------------------------------------
+
 '''
 I made this python file to test why the simulations look so weird
 '''
@@ -11,7 +14,6 @@ from astropy.io import fits
 import glob
 from astropy.io import fits as pyfits
 from astropy.io import fits
-
 
 #----------------------------------------------------------------------------------------------
 
@@ -76,9 +78,98 @@ NUM_CLASSES = 2
 #filename is a string, stronglens is 1 or 0
 data_SL, fitsNames_SL = get_data_from_file(filename_SL, hdu=hdu, keys=keys) #, hdu, keys
 
+#---------------------------------------------------------------------------------------
+#adding noise along the edges
+
+plt.imshow(data_SL[0], cmap='gray')
+plt.title('Original simulation')
+plt.show()
+
+#make histogram
+arr = data_SL[0]
+flat = arr.flatten()
+
+negatives = flat[flat<0]
+positives = -negatives
+noise_pix = np.concatenate((positives, negatives))
+
+mu = np.mean(noise_pix)
+sigma = np.std(noise_pix)
+
+image = arr
+
+new_size = 66
+# Create an empty array for the new image
+new_image = np.zeros((new_size, new_size))
+
+# Compute the starting index to place the original image in the center
+start_idx = (new_size - 44) // 2
+
+# Place the original image in the center of the new image
+new_image[start_idx:start_idx + 44, start_idx:start_idx + 44] = image
+
+# Generate Gaussian noise
+noise = np.random.normal(mu, sigma, (new_size, new_size))
+
+# Add Gaussian noise to the new image where the original image does not exist
+mask = np.zeros((new_size, new_size))
+mask[start_idx:start_idx + 44, start_idx:start_idx + 44] = 1
+new_image = new_image * mask + noise * (1 - mask)
+
+# Plot the new image
+#plt.imshow(new_image, cmap='gray')
+#plt.title('Extended Image with Gaussian Noise')
+#plt.show()
+
+#-------------------------------------------------------------------------------------
+#automate the process on top
+
+def add_noise(arr, new_size):
+    size = 44
+    
+    #make noise
+    flat = arr.flatten()
+    negatives = flat[flat<0]
+    positives = -negatives
+    noise_pix = np.concatenate((positives, negatives))
+    
+    #find parameters gaussian distribution
+    mu = np.mean(noise_pix)
+    sigma = np.std(noise_pix)
+
+    image = arr
+
+    # Create an empty array for the new image
+    new_image = np.zeros((new_size, new_size))
+
+    # Compute the starting index to place the original image in the center
+    start_idx = (new_size - 44) // 2
+
+    # Place the original image in the center of the new image
+    new_image[start_idx:start_idx + 44, start_idx:start_idx + 44] = image
+
+    # Generate Gaussian noise
+    noise = np.random.normal(mu, sigma, (new_size, new_size))
+
+    # Add Gaussian noise to the new image where the original image does not exist
+    mask = np.zeros((new_size, new_size))
+    mask[start_idx:start_idx + 44, start_idx:start_idx + 44] = 1
+    new_image = new_image * mask + noise * (1 - mask)
+    
+    return(new_image)
+
+
+#--------------------------------------------------------------------------------------
+
+new_size = 66
+
+for i in range(len(data_SL)):
+    arr = data_SL[i]
+    data_SL[i] = add_noise(arr, new_size)
+
+
 #normalize and make positive
 data_SL = normalize_data(make_data_positive(data_SL))
-
 
 #convert to rgb
 data_SL = grayscale_to_rgb(data_SL)
@@ -103,16 +194,6 @@ plt.show()
 
 #---------------------------------------------------------------------------------------
 head1 = fits.getheader('Lens_simulations/106.fits')
-
-#---------------------------------------------------------------------------------------
-#adding noise along the edges
-
-#make histogram
-arr = data_SL[0,:,:,:]
-flat = arr.flatten()
-plt.hist(flat)
-plt.show
-
 
 
 

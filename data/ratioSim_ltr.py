@@ -159,6 +159,38 @@ def prepare_data(filename_SL, filename_random, IMG_SIZE, hdu = 0, keys = ['NAXIS
        
     return(ds_train, ds_test)
 
+def add_noise(arr, new_size=66):
+    #make noise
+    flat = arr.flatten()
+    negatives = flat[flat<0]
+    positives = -negatives
+    noise_pix = np.concatenate((positives, negatives))
+    
+    #find parameters gaussian distribution
+    mu = np.mean(noise_pix)
+    sigma = np.std(noise_pix)
+
+    image = arr
+
+    # Create an empty array for the new image
+    new_image = np.zeros((new_size, new_size))
+
+    # Compute the starting index to place the original image in the center
+    start_idx = (new_size - 44) // 2
+
+    # Place the original image in the center of the new image
+    new_image[start_idx:start_idx + 44, start_idx:start_idx + 44] = image
+
+    # Generate Gaussian noise
+    noise = np.random.normal(mu, sigma, (new_size, new_size))
+
+    # Add Gaussian noise to the new image where the original image does not exist
+    mask = np.zeros((new_size, new_size))
+    mask[start_idx:start_idx + 44, start_idx:start_idx + 44] = 1
+    new_image = new_image * mask + noise * (1 - mask)
+    
+    return(new_image)
+
 #----------------------------------------------------------------------------------------------
 filename_SL_sim = './Lens_simulations/*.fits'
 filename_SL_real = './selected_objects_4_stefan/*.fits'
@@ -177,16 +209,12 @@ data_SL_sim, fitsNames_SL_sim = get_data_from_file(filename_SL_sim, hdu=hdu, key
 data_random, fitsNames_random = get_data_from_file(filename_random, hdu=hdu, keys=keys)
 
 
-for i in range(len(data_random)):
-    arr = data_random[i]
-    data_random[i]=arr[10:54, 10:54]
-    
-for i in range(len(data_SL_real)):
-    arr2 = data_SL_real[i]
-    data_SL_real[i] = arr2[10:54, 10:54]
+for i in range(len(data_SL_sim)):
+    arr = data_SL_sim[i]
+    data_SL_sim[i] = add_noise(arr)
 
-r_real = 250
-r_sim = 250
+r_real = 50
+r_sim = 450
 #put together
 data = np.concatenate((np.array(data_SL_sim[0:r_sim]), np.array(data_SL_real[0:r_real]), np.array(data_random ))) 
 fitsNames = fitsNames_SL_sim[0:r_sim]+fitsNames_SL_real[0:r_real] + fitsNames_random
@@ -367,7 +395,7 @@ fpr, tpr, thresholds = roc_curve(y_test, y_scores)
 roc_auc = auc(fpr, tpr)
 
 plt.figure()
-plt.plot(fpr, tpr, color='magenta', lw=2, label='ROC curve (area = 0.884)' )
+plt.plot(fpr, tpr, color='magenta', lw=2, label='ROC curve (area = 0.92)' )
 plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
 plt.xlim([0.0, 1.0])
 plt.ylim([0.0, 1.05])

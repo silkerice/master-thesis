@@ -143,7 +143,40 @@ def prepare_data(filename_SL, filename_random, IMG_SIZE, hdu = 0, keys = ['NAXIS
     ds_train = ds_train.map(lambda image, label: (tf.image.resize(image, size), label))
     ds_test = ds_test.map(lambda image, label: (tf.image.resize(image, size), label))
        
-    return(ds_train, ds_test)
+    return(ds_train, ds_test)\
+        
+
+def add_noise(arr, new_size=66):
+    #make noise
+    flat = arr.flatten()
+    negatives = flat[flat<0]
+    positives = -negatives
+    noise_pix = np.concatenate((positives, negatives))
+    
+    #find parameters gaussian distribution
+    mu = np.mean(noise_pix)
+    sigma = np.std(noise_pix)
+
+    image = arr
+
+    # Create an empty array for the new image
+    new_image = np.zeros((new_size, new_size))
+
+    # Compute the starting index to place the original image in the center
+    start_idx = (new_size - 44) // 2
+
+    # Place the original image in the center of the new image
+    new_image[start_idx:start_idx + 44, start_idx:start_idx + 44] = image
+
+    # Generate Gaussian noise
+    noise = np.random.normal(mu, sigma, (new_size, new_size))
+
+    # Add Gaussian noise to the new image where the original image does not exist
+    mask = np.zeros((new_size, new_size))
+    mask[start_idx:start_idx + 44, start_idx:start_idx + 44] = 1
+    new_image = new_image * mask + noise * (1 - mask)
+    
+    return(new_image)
 
 #----------------------------------------------------------------------------------------------
 filename_SL ='./Lens_simulations/*.fits'
@@ -160,9 +193,9 @@ NUM_CLASSES = 2
 data_SL, fitsNames_SL = get_data_from_file(filename_SL, hdu=hdu, keys=keys) #, hdu, keys
 data_random, fitsNames_random = get_data_from_file(filename_random, hdu=hdu, keys=keys)
 
-for i in range(len(data_random)):
-    arr = data_random[i]
-    data_random[i]=arr[10:54, 10:54]
+for i in range(len(data_SL)):
+    arr = data_SL[i]
+    data_SL[i] = add_noise(arr)
         
 #put together
 data = np.concatenate((np.array(data_SL), np.array(data_random ))) 
@@ -347,7 +380,7 @@ fpr, tpr, thresholds = roc_curve(y_test, y_scores)
 roc_auc = auc(fpr, tpr)
 
 plt.figure()
-plt.plot(fpr, tpr, color='magenta', lw=2, label='ROC curve (area = %0.3f)' % roc_auc)
+plt.plot(fpr, tpr, color='magenta', lw=2, label=f'ROC curve (area = {np.round(auc_value,3)})' )
 plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
 plt.xlim([0.0, 1.0])
 plt.ylim([0.0, 1.05])
@@ -470,6 +503,6 @@ def fpr(fp, tn):
 
 fp = len(false_pos)
 tn = y_true.count(0)
-fpr = fpr(fp,tn)
+fprate = fpr(fp,tn)
 
-print('False positive rate: ', fpr)
+print('False positive rate: ', fprate)

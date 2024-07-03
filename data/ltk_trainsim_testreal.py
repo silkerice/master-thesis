@@ -145,8 +145,39 @@ def prepare_data(filename_SL, filename_random, IMG_SIZE, hdu = 0, keys = ['NAXIS
        
     return(ds_train, ds_test)
 
+def add_noise(arr, new_size=66):
+    #make noise
+    flat = arr.flatten()
+    negatives = flat[flat<0]
+    positives = -negatives
+    noise_pix = np.concatenate((positives, negatives))
+    
+    #find parameters gaussian distribution
+    mu = np.mean(noise_pix)
+    sigma = np.std(noise_pix)
+
+    image = arr
+
+    # Create an empty array for the new image
+    new_image = np.zeros((new_size, new_size))
+
+    # Compute the starting index to place the original image in the center
+    start_idx = (new_size - 44) // 2
+
+    # Place the original image in the center of the new image
+    new_image[start_idx:start_idx + 44, start_idx:start_idx + 44] = image
+
+    # Generate Gaussian noise
+    noise = np.random.normal(mu, sigma, (new_size, new_size))
+
+    # Add Gaussian noise to the new image where the original image does not exist
+    mask = np.zeros((new_size, new_size))
+    mask[start_idx:start_idx + 44, start_idx:start_idx + 44] = 1
+    new_image = new_image * mask + noise * (1 - mask)
+    
+    return(new_image)
 #----------------------------------------------------------------------------------------------
-#----------------------------------------------------------------------------------------------
+
 filename_SL ='./Lens_simulations/*.fits'
 filename_random = './randomcutouts2/41/*.fits'
 filename_SL_real = './selected_objects_4_stefan/*.fits'
@@ -163,13 +194,10 @@ data_SL, fitsNames_SL = get_data_from_file(filename_SL, hdu=hdu, keys=keys) #, h
 data_random, fitsNames_random = get_data_from_file(filename_random, hdu=hdu, keys=keys)
 data_SL_real, fitsNames_SL_real = get_data_from_file(filename_SL_real, hdu=hdu, keys=keys) 
 
-for i in range(len(data_random)):
-    arr = data_random[i]
-    data_random[i] = arr[10:54, 10:54]
-    
-for i in range(len(data_SL_real)):
-    arr2 = data_SL_real[i]
-    data_SL_real[i] = arr2[10:54, 10:54]
+for i in range(len(data_SL)):
+    arr = data_SL[i]
+    data_SL[i] = add_noise(arr)
+        
         
 # Split data_random into two parts: one for training and one for testing
 split_index = int(0.8 * len(data_random))
@@ -233,6 +261,8 @@ X_test_rescaled = tf.image.resize(X_test, (IMG_SIZE, IMG_SIZE))
 
 print("Shape of X_train_rescaled:", X_train_rescaled.shape)
 print("Shape of X_test_rescaled:", X_test_rescaled.shape)
+
+#----------------------------------------------------------------------------------------------
 
 # Define your TensorFlow model
 model = Sequential([
@@ -322,10 +352,6 @@ print(
     "Classification report rebuilt from confusion matrix:\n"
     f"{metrics.classification_report(y_true, y_pred)}\n"
 )
-
-
-
-
 
 #----------------------------------------------------------------------------------------------
 #AUC calculation

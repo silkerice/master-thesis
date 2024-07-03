@@ -80,12 +80,12 @@ data_SL = normalize_data(make_data_positive(data_SL))
 #convert to rgb
 data_SL = grayscale_to_rgb(data_SL)
 #np.random.shuffle(data_SL)
-data_SL = data_SL[:,31:97,31:97,:]
+#data_SL = data_SL[:,31:97,31:97,:]
 
 #plot
 
 # Create a 3x3 grid of subplots
-fig, axes = plt.subplots(5,4, figsize=(10, 10))
+fig, axes = plt.subplots(4,4, figsize=(10, 10))
 
 # Plot each image in the grid
 for i, ax in enumerate(axes.flat):
@@ -99,3 +99,5 @@ for i, ax in enumerate(axes.flat):
 plt.tight_layout()  # Adjust layout
 fig.suptitle('example clusters',y=1.05, fontsize = 20)
 plt.show()
+
+array1head = fits.getheader('/Users/silke/Documents/masterthesis/finding_clusters/clustersdata_examples/CFIS.056.241.r.0__211_338_5457_5584.fits')
