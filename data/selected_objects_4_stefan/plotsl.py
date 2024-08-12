@@ -10,7 +10,6 @@ import numpy as np
 from astropy.io import fits
 import glob
 from astropy.io import fits as pyfits
-from astropy.io import fits
 
 
 #----------------------------------------------------------------------------------------------
@@ -19,10 +18,10 @@ def make_data_positive(data):
     #data can be list or array
     #convert to np.arrays
     data= np.array(data)
-    for i in range(len(data[:])):
-        minimum= np.min(data[i])
+    for i in range(len(data[:,0,0])):
+        minimum= np.min(data[i,:,:])
         eps = 0.0001
-        data[i]=data[i]+abs(minimum)+eps
+        data[i,:,:]=data[i,:,:]+abs(minimum)+eps
     
     #set all negative pixels to zero
     #data[data<0] =0
@@ -33,8 +32,8 @@ def normalize_data(data):
     #convert to np.arrays
     #data = np.array(data)
     #normalize the data
-    for i in range(len(data[:] )-1):
-        data[i] = data[i]/np.max(data[i])
+    for i in range(len(data[:,0,0] )-1):
+        data[i,:,:] = data[i,:,:]/np.max(data[i,:,:])
     return(data)
 
 def get_data_from_file(filename, hdu = 0, keys = ['NAXIS', 'FILTER']):
@@ -65,8 +64,7 @@ def grayscale_to_rgb(images):
 
 #---------------------------------------------------------------------------------------
 
-filename_SL = './Lens_simulations/*.fits'
-#filename_SL = '.flat_theta_e_mocks_90k/*.fits'
+filename_SL = '*.fits'
 IMG_SIZE = 224
 hdu = 0
 keys = ['NAXIS', 'FILTER']
@@ -79,9 +77,10 @@ data_SL, fitsNames_SL = get_data_from_file(filename_SL, hdu=hdu, keys=keys) #, h
 #normalize and make positive
 data_SL = normalize_data(make_data_positive(data_SL))
 
-
 #convert to rgb
 data_SL = grayscale_to_rgb(data_SL)
+#np.random.shuffle(data_SL)
+#data_SL = data_SL[:,31:97,31:97,:]
 
 #plot
 
@@ -91,28 +90,14 @@ fig, axes = plt.subplots(3,3, figsize=(10, 10))
 # Plot each image in the grid
 for i, ax in enumerate(axes.flat):
     if i < len(data_SL):
-        img = data_SL[i]
+        img = data_SL[i+50]
         img_norm = (img - img.min()) / (img.max() - img.min())  # Normalize image
         ax.imshow(np.log1p(img_norm), cmap='gray')  # Use grayscale colormap
-        #ax.set_title(f" Simulation {i+90}",fontsize=18)
+        #ax.set_title(f" Simulation {i}",fontsize=18)
     ax.axis('off')  # Turn off axis
     
 plt.tight_layout()  # Adjust layout
-fig.suptitle('example simulations',y=1.05, fontsize = 20)
+fig.suptitle('example clusters',y=1.05, fontsize = 20)
 plt.show()
 
-#---------------------------------------------------------------------------------------
-head1 = fits.getheader('Lens_simulations/106.fits')
-
-#---------------------------------------------------------------------------------------
-#adding noise along the edges
-
-#make histogram
-arr = data_SL[0,:,:,:]
-flat = arr.flatten()
-plt.hist(flat)
-plt.show
-
-
-
-
+array1head = fits.getheader('/Users/silke/Documents/masterthesis/finding_clusters/clustersdata_examples/CFIS.056.241.r.0__211_338_5457_5584.fits')

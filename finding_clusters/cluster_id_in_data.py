@@ -1,7 +1,8 @@
-'''
-I made this python file to test why the simulations look so weird
-'''
 
+import time
+
+# Record the start time
+start_time = time.time()
 
 #import packages
 from matplotlib import pyplot as plt
@@ -10,10 +11,23 @@ import numpy as np
 from astropy.io import fits
 import glob
 from astropy.io import fits as pyfits
+import cv2
 
 
 #----------------------------------------------------------------------------------------------
 
+# Function to apply histogram equalization
+def equalize_histogram(image):
+    image_np = image
+    # Ensure image is in the range [0, 255] and type uint8
+    image_np = (image_np * 255).astype(np.uint8)
+    # Convert to grayscale if the image is not already in grayscale
+    if len(image_np.shape) == 3 and image_np.shape[-1] == 3:
+        image_np = cv2.cvtColor(image_np, cv2.COLOR_RGB2GRAY)
+    equalized_image = cv2.equalizeHist(image_np)
+    
+    return equalized_image
+    
 def make_data_positive(data):
     #data can be list or array
     #convert to np.arrays
@@ -62,42 +76,46 @@ def grayscale_to_rgb(images):
     rgb_images = np.stack([images, images, images], axis=-1)
     return rgb_images
 
-#---------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------------
 
-filename_SL = '*.fits'
+filename= './randomcutouts2/41/*.fits'
 IMG_SIZE = 224
 hdu = 0
 keys = ['NAXIS', 'FILTER']
 batch_size = 64
 NUM_CLASSES = 2
 
+#----------------------------------------------------------------------------------------------
+
 #filename is a string, stronglens is 1 or 0
-data_SL, fitsNames_SL = get_data_from_file(filename_SL, hdu=hdu, keys=keys) #, hdu, keys
+data, fitsNames = get_data_from_file(filename, hdu=hdu, keys=keys)
 
-#normalize and make positive
-data_SL = normalize_data(make_data_positive(data_SL))
+#get cluster id's
+# Open the file in read mode
+with open('gall_ids2.txt', 'r') as file:
+    # Read the entire file content
+    content = file.read()
+    # Split the content by commas to get individual IDs
+    candidate_ids = content.split(',')
 
-#convert to rgb
-data_SL = grayscale_to_rgb(data_SL)
-#np.random.shuffle(data_SL)
-#data_SL = data_SL[:,31:97,31:97,:]
+# Remove any extra whitespace characters from each ID
+candidate_ids = [id.strip() for id in candidate_ids]
 
-#plot
+#match gal ids to fits files
+clusterlist = []
+i=0
 
-# Create a 3x3 grid of subplots
-fig, axes = plt.subplots(3,3, figsize=(10, 10))
+for gal_id in candidate_ids:
+    # Check if the substring is part of any string in the list
+    is_present = any(gal_id in string for string in fitsNames)
+    if is_present:
+        clusterlist.append(gal_id)
+            
+ 
 
-# Plot each image in the grid
-for i, ax in enumerate(axes.flat):
-    if i < len(data_SL):
-        img = data_SL[i+8]
-        img_norm = (img - img.min()) / (img.max() - img.min())  # Normalize image
-        ax.imshow(np.log1p(img_norm), cmap='gray')  # Use grayscale colormap
-        #ax.set_title(f" Simulation {i}",fontsize=18)
-    ax.axis('off')  # Turn off axis
+            
     
-plt.tight_layout()  # Adjust layout
-fig.suptitle('example clusters',y=1.05, fontsize = 20)
-plt.show()
 
-array1head = fits.getheader('/Users/silke/Documents/masterthesis/finding_clusters/clustersdata_examples/CFIS.056.241.r.0__211_338_5457_5584.fits')
+
+
+

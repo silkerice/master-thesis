@@ -277,10 +277,10 @@ X_test_flattened = X_test_conv.reshape(X_test_conv.shape[0], -1)
 # Now, you can use X_train_flattened and X_test_flattened as inputs to your scikit-learn model
 
 # Let's use a simple Support Vector Machine (SVM) as an example
-svm_model = svm.SVC(probability = True)
+#svm_model = svm.SVC(probability = True)
 
 #use gaussian
-#svm_model = GaussianNB()
+svm_model = GaussianNB()
 
 #use random forest
 #svm_model = RandomForestClassifier()
@@ -341,7 +341,7 @@ print("AUC:", auc_value)
 
 #print the confusion matrix
 disp = metrics.ConfusionMatrixDisplay.from_predictions(y_test, predicted)
-disp.figure_.suptitle("Confusion Matrix - SVM")
+disp.figure_.suptitle("Confusion Matrix - Gaussian")
 print(f"Confusion matrix:\n{disp.confusion_matrix}")
 
 plt.show()
@@ -359,7 +359,7 @@ plt.xlim([0.0, 1.0])
 plt.ylim([0.0, 1.05])
 plt.xlabel('False Positive Rate')
 plt.ylabel('True Positive Rate')
-plt.title('Receiver Operating Characteristic (ROC) - Class 0 - LTR - SVM')
+plt.title('Receiver Operating Characteristic (ROC) - Class 0 - LTR - Gaussian')
 plt.legend(loc="lower right")
 plt.show()
 
@@ -397,11 +397,11 @@ fraction_of_positives, mean_predicted_value = calibration_curve(y_test, prob_pos
 
 
 plt.figure(figsize=(8, 8))
-plt.plot(mean_predicted_value, fraction_of_positives, "s-", label="SVM", color = 'magenta')
+plt.plot(mean_predicted_value, fraction_of_positives, "s-", label="Gaussian", color = 'magenta')
 plt.plot([0, 1], [0, 1], "k--", label="Perfectly calibrated")
 plt.xlabel("Mean predicted probability",fontsize = 14)
 plt.ylabel("Fraction of positives",fontsize = 14)
-plt.title("Calibration plot - SVM", fontsize = 16)
+plt.title("Calibration plot - Gaussian", fontsize = 16)
 plt.legend(fontsize = 14)
 plt.show()
 
@@ -477,7 +477,7 @@ for i in range(len(prob_pos_diff)):
 images = false_neg[:9]
 
 # Create a 3x3 grid of subplots
-fig, axes = plt.subplots(3,3, figsize=(10, 10))
+fig, axes = plt.subplots(3,3, figsize=(10, 10)) 
 
 # Plot each image in the grid
 for i, ax in enumerate(axes.flat):
@@ -500,15 +500,15 @@ plt.show()
 tosave = np.array(['Accuracy ', accuracy, 'Runtime ', elapsed_time, 'roc_auc ', roc_auc])
                   # , 'y_test ', y_test, 'y_pred', y_pred])
 
-with open('LTRacc_runtime_SVM.txt', 'w') as f:  # 'f' is defined within this block
+with open('LTRacc_runtime_Gaussian.txt', 'w') as f:  # 'f' is defined within this block
     for item in tosave:
         f.write(f"{item}\n")
 
-with open('LTRfpr_SVM.txt', 'w') as f:  # 'f' is defined within this block
+with open('LTRfpr_Gaussian.txt', 'w') as f:  # 'f' is defined within this block
     for item in fpr:
         f.write(f"{item}\n")
 
-with open('LTRtpr_SVM.txt', 'w') as f:  # 'f' is defined within this block
+with open('LTRtpr_Gaussian.txt', 'w') as f:  # 'f' is defined within this block
     for item in tpr:
         f.write(f"{item}\n")
     

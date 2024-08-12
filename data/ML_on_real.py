@@ -230,7 +230,7 @@ def perform_ML(filename_SL, filename_random, IMG_SIZE, hdu=0, keys = ['NAXIS', '
 
     model.summary()
 
-    epochs = 20  # in paper 200, but keras can adjust it if necessary
+    epochs = 50  # in paper 200, but keras can adjust it if necessary
     hist = model.fit(ds_train, epochs=epochs, validation_data=ds_test, verbose=2)
 
     rgb1 = (255/255, 109/255, 196/255)
@@ -288,7 +288,7 @@ def plot_roc_curve(y_test, y_pred):
     
 
 #tests
-filename_random = './randomcutouts2/21/*.fits'
+filename_random = './randomcutouts2/41/*.fits'
 filename_SL = './selected_objects_4_stefan/*.fits'
 
 IMG_SIZE = 224
@@ -304,7 +304,7 @@ rgb3 = (0,6/255/100,48/100)
 rgb4 = (0,167/255, 1)
 def plot_hist(hist):
         plt.plot(hist.history["accuracy"], color = rgb2)
-        plt.plot(hist.history["val_accuracy"], color = rgb1)
+        plt.plot(hist.history["val_accuracy"], color = 'orange')
         plt.title("CNN Accuracy", fontsize=18)
         plt.ylabel("Accuracy", fontsize=14)
         plt.xlabel("Epoch", fontsize=14)
@@ -319,7 +319,11 @@ plot_hist(hist)
 #------------------------ AUC curve -------------------------
 # Compute the ROC curve and AUC for class 0
 y_test,y_pred = predictY(ds_test,model)
-plot_roc_curve(y_test,y_pred)
+roc_display = plot_roc_curve(y_test,y_pred)
+roc_display.ax_.set_title('ROC curve CNN')
+roc_display.ax_.set_xlabel('False Positive Rate', fontsize=16)  # Increase fontsize as needed
+roc_display.ax_.set_ylabel('True Positive Rate', fontsize=16)
+plt.show()
 
 # Record the end time
 end_time = time.time()
@@ -329,7 +333,20 @@ elapsed_time = end_time - start_time
 
 print("Elapsed time:", elapsed_time, "seconds")
 
+#-------------------- Save Results ----------------------------
 
+tosave = np.array(['Accuracy ', hist.history["val_accuracy"][49], 'Runtime ', elapsed_time])
+                  # , 'y_test ', y_test, 'y_pred', y_pred])
 
+with open('MLacc_runtime.txt', 'w') as f:  # 'f' is defined within this block
+    for item in tosave:
+        f.write(f"{item}\n")
 
+with open('MLy_test.txt', 'w') as f:  # 'f' is defined within this block
+    for item in y_test:
+        f.write(f"{item}\n")
+
+with open('MLy_pred.txt', 'w') as f:  # 'f' is defined within this block
+    for item in y_pred:
+        f.write(f"{item}\n")
     
