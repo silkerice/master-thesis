@@ -34,6 +34,8 @@ from sklearn.svm import LinearSVC
 from sklearn.utils import Bunch
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, auc
+from sklearn.metrics import roc_curve
 from sklearn.calibration import calibration_curve
 
 #----------------------------------------------------------------------------------------------
@@ -147,7 +149,7 @@ def prepare_data(filename_SL, filename_random, IMG_SIZE, hdu = 0, keys = ['NAXIS
 #----------------------------------------------------------------------------------------------
 #filename_SL = './flat_theta_e_mocks_90k/*.fits'
 filename_SL = './selected_objects_4_stefan/*.fits'
-filename_random = './randomcutouts2/21/*.fits'
+filename_random = './randomcutouts2/41/*.fits'
 IMG_SIZE = 224
 hdu = 0
 keys = ['NAXIS', 'FILTER']
@@ -255,7 +257,7 @@ print('number of ones train', len(ones))
 print('number of zeros train', len(zeros))
       
 lentrain = len(y_train)
-newindex0 = zeros[0:len(ones)]
+newindex0 = zeros[0:int(len(ones)/4)]
 newindex1 = ones#[0:1000]
 index=np.concatenate((newindex0,newindex1))
 
@@ -274,7 +276,7 @@ zeros =np.where(y_test==0)[0]
 print('number of ones test', len(ones))
 print('number of zeros test', len(zeros))
 newindex1 = ones
-newindex0 = zeros[0:len(ones)]
+newindex0 = zeros[0:int(len(ones)/4)]
 index=np.concatenate((newindex0,newindex1))
 
 X_test = X_test[index]
@@ -412,9 +414,38 @@ print(
 #----------------------------------------------------------------------------------------------
 #AUC calculation
 
-auc = roc_auc_score(y_true, y_pred)
+auc_value = roc_auc_score(y_true, y_pred)
 
-print("AUC:", auc)
+print("AUC:", auc_value)
+
+#print the confusion matrix
+disp = metrics.ConfusionMatrixDisplay.from_predictions(y_test, predicted)
+disp.figure_.suptitle("Confusion Matrix - SVM")
+print(f"Confusion matrix:\n{disp.confusion_matrix}")
+
+plt.show()
+
+y_scores = svm_model.predict_proba(X_test_flattened)[:, 1]
+
+fpr, tpr, thresholds = roc_curve(y_test, y_scores)
+
+roc_auc = auc(fpr, tpr)
+
+plt.figure()
+plt.plot(fpr, tpr, color='magenta', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
+plt.plot([0, 1], [0, 1], color='black', lw=2, linestyle='--')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.0])
+# Adjust the margins
+plt.subplots_adjust(left=0.05, right=0.95, top=0.9, bottom=0.1)
+# Set the aspect ratio using gca()
+plt.gca().set_aspect('equal')  # 1:1 aspect ratio
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.legend(loc="lower right")
+# Save the plot as a PDF
+plt.savefig('/Users/silke/Documents/masterthesis/Results/3LTRratios/tr41_te41_roc_curve.pdf')
+plt.show()
 
 #----------------------------------------------------------------------------------------------
 #calibration of classifiers
@@ -448,14 +479,20 @@ prob_pos = svm_model.predict_proba(X_test_flattened)[:, 1]
 #plot calibration curve
 fraction_of_positives, mean_predicted_value = calibration_curve(y_test, prob_pos, n_bins=5)
 
-
-plt.figure(figsize=(8, 8))
+plt.figure()
 plt.plot(mean_predicted_value, fraction_of_positives, "s-", label="SVM", color = 'magenta')
 plt.plot([0, 1], [0, 1], "k--", label="Perfectly calibrated")
-plt.xlabel("Mean predicted probability",fontsize = 14)
-plt.ylabel("Fraction of positives",fontsize = 14)
-plt.title("Calibration plot - SVM", fontsize = 16)
-plt.legend(fontsize = 14)
+plt.xlabel("Mean predicted probability")
+plt.ylabel("Fraction of positives")
+# Adjust the margins
+plt.subplots_adjust(left=0.05, right=0.95, top=0.9, bottom=0.1)
+# Set the aspect ratio using gca()
+plt.gca().set_aspect('equal')  # 1:1 aspect ratio
+plt.xlabel("Mean predicted probability")
+plt.ylabel("Fraction of positives")
+plt.legend(loc="lower right")
+# Save the plot as a PDF
+plt.savefig('/Users/silke/Documents/masterthesis/Results/3LTRratios/tr41_te41_cal_curve.pdf')
 plt.show()
 
 # Record the end time
@@ -466,84 +503,22 @@ elapsed_time = end_time - start_time
 
 print("Elapsed time:", elapsed_time, "seconds")
 
-#----------------------------------------------------------------------------------------------
-#find false positives
 
-diff = [x-y for x, y in zip(y_test, originalpred)] #THIS CHANGED!!
-#diff = [x-y for x, y in zip(y_true, y_pred)] 
-false_pos_index  = [i for i, x in enumerate(diff) if x == -1]
-false_pos = X_test[false_pos_index]
-#find probability of being strong lens for each image
-prob_pos_diff=prob_pos[false_pos_index]
+#-------------------- Save Results ----------------------------
 
-#find rank
-l = sorted(prob_pos)
-rank = []
-#search which index in list 
-for i in range(len(prob_pos_diff)):
-    index = l.index(prob_pos_diff[i])
-    rank.append(index)
+tosave = np.array(['Accuracy ', accuracy, 'Runtime ', elapsed_time, 'roc_auc ', roc_auc])
+                  # , 'y_test ', y_test, 'y_pred', y_pred])
 
-#plot
-# Get the first 9 images
-images = false_pos[:9]
+with open('tr41_te41_runtime.txt', 'w') as f:  # 'f' is defined within this block
+    for item in tosave:
+        f.write(f"{item}\n")
 
-# Create a 3x3 grid of subplots
-fig, axes = plt.subplots(3, 3, figsize=(10, 10))
+with open('tr41_te41_fpr.txt', 'w') as f:  # 'f' is defined within this block
+    for item in fpr:
+        f.write(f"{item}\n")
 
-# Plot each image in the grid
-for i, ax in enumerate(axes.flat):
-    if i < len(false_pos):
-        img = false_pos[i]
-        
-        logtransform = np.log1p(img)
-        img_norm = (img - img.min()) / (img.max() - img.min())  # Normalize image
-        ax.imshow(img_norm, cmap='gray')  # Use grayscale colormap
-        ax.set_title(f" Prob of SL:{ np.round(prob_pos_diff[i],2)}, rank = {rank[i]}", fontsize=16)
-    ax.axis('off')  # Turn off axis
-    
-plt.tight_layout()  # Adjust layout
-cutoff = cm[0,0]+cm[0,1]
-fig.suptitle(f'False positive examples, cutoff = {cutoff}',y=1.05, fontsize = 20)
-plt.show()
-
-#----------------------------------------------------------------------------------------------
-#find false negatives
-
-diff = [x-y for x, y in zip(originalpred, y_test)] #THIS CHANGED!!
-#diff = [x-y for x, y in zip(y_pred, y_true)]
-false_neg_index  = [i for i, x in enumerate(diff) if x == -1]
-false_neg = X_test[false_neg_index]
-#find probability of being strong lens for each image
-prob_pos_diff=prob_pos[false_neg_index]
-
-#find rank
-l = sorted(prob_pos)
-rank = []
-#search which index in list 
-for i in range(len(prob_pos_diff)):
-    index = l.index(prob_pos_diff[i])
-    rank.append(index)
-
-#plot
-# Get the first 9 images
-images = false_neg[:9]
-
-# Create a 3x3 grid of subplots
-fig, axes = plt.subplots(3,3, figsize=(10, 10))
-
-# Plot each image in the grid
-for i, ax in enumerate(axes.flat):
-    if i < len(false_neg):
-        img = false_neg[i]
-        img_norm = (img - img.min()) / (img.max() - img.min())  # Normalize image
-        ax.imshow(img_norm, cmap='gray')  # Use grayscale colormap
-        ax.set_title(f" Prob of SL:{ np.round(prob_pos_diff[i],2)}, rank = {rank[i]}", fontsize=16)
-    ax.axis('off')  # Turn off axis
-    
-plt.tight_layout()  # Adjust layout
-cutoff = cm[0,0]+cm[0,1]
-fig.suptitle(f'False negative examples, cutoff = {cutoff}',y=1.05, fontsize = 20)
-plt.show()
+with open('tr41_te41_tpr.txt', 'w') as f:  # 'f' is defined within this block
+    for item in tpr:
+        f.write(f"{item}\n")
 
 

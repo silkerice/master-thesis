@@ -190,7 +190,41 @@ print('non sl length', n-nsl)
 print('SL length',nsl)
 #labels = create_labels(n, fitsNames)
 labels = np.concatenate((np.ones(nsl), np.zeros(n-nsl)))
-#labels_tensor = tf.convert_to_tensor(labels, dtype=tf.int32)
+
+#----------------------------------------------------------------------------------------------
+
+#rotate and flip stuff 
+listnewimages = []
+listnewlabels = []
+for i in range(len(labels)):
+    #check label
+    if labels[i] == 1:
+        y=1
+    else:
+        y=0
+    
+    for j in range(6):
+        listnewlabels.append(y)
+        
+    #load image
+    image_array = data[i,:,:,:]
+    listnewimages.append(image_array)
+    # Flip the image horizontally
+    flipped_horizontal = np.fliplr(image_array)
+    listnewimages.append(flipped_horizontal)
+        
+    # Flip the image vertically
+    flipped_vertical = np.flipud(image_array)
+    listnewimages.append(flipped_vertical)
+    
+    #rotated and flipped images
+    for j in [1,2,3]:
+        #rotated
+        rot =np.rot90(image_array, j)
+        listnewimages.append(rot)   
+  
+labels = np.array(listnewlabels)
+data =np.array(listnewimages)
 
 #create bunch object
 bunchobject = Bunch(images = data, targets = labels)
@@ -353,16 +387,20 @@ fpr, tpr, thresholds = roc_curve(y_test, y_scores)
 roc_auc = auc(fpr, tpr)
 
 plt.figure()
-plt.plot(fpr, tpr, color='orange', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
-plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+plt.plot(fpr, tpr, color='magenta', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
+plt.plot([0, 1], [0, 1], color='black', lw=2, linestyle='--')
 plt.xlim([0.0, 1.0])
-plt.ylim([0.0, 1.05])
+plt.ylim([0.0, 1.0])
+# Adjust the margins
+plt.subplots_adjust(left=0.05, right=0.95, top=0.9, bottom=0.1)
+# Set the aspect ratio using gca()
+plt.gca().set_aspect('equal')  # 1:1 aspect ratio
 plt.xlabel('False Positive Rate')
 plt.ylabel('True Positive Rate')
-plt.title('Receiver Operating Characteristic (ROC) - Class 0 - LTR - Gaussian')
 plt.legend(loc="lower right")
+# Save the plot as a PDF
+plt.savefig('/Users/silke/Documents/masterthesis/Results/2LTRclassifier/ltr_gaus_roc_curve.pdf')
 plt.show()
-
 #----------------------------------------------------------------------------------------------
 #calibration of classifiers
 
@@ -396,13 +434,20 @@ prob_pos = svm_model.predict_proba(X_test_flattened)[:, 1]
 fraction_of_positives, mean_predicted_value = calibration_curve(y_test, prob_pos, n_bins=5)
 
 
-plt.figure(figsize=(8, 8))
+plt.figure()
 plt.plot(mean_predicted_value, fraction_of_positives, "s-", label="Gaussian", color = 'magenta')
 plt.plot([0, 1], [0, 1], "k--", label="Perfectly calibrated")
-plt.xlabel("Mean predicted probability",fontsize = 14)
-plt.ylabel("Fraction of positives",fontsize = 14)
-plt.title("Calibration plot - Gaussian", fontsize = 16)
-plt.legend(fontsize = 14)
+plt.xlabel("Mean predicted probability")
+plt.ylabel("Fraction of positives")
+# Adjust the margins
+plt.subplots_adjust(left=0.05, right=0.95, top=0.9, bottom=0.1)
+# Set the aspect ratio using gca()
+plt.gca().set_aspect('equal')  # 1:1 aspect ratio
+plt.xlabel("Mean predicted probability")
+plt.ylabel("Fraction of positives")
+plt.legend(loc="lower right")
+# Save the plot as a PDF
+plt.savefig('/Users/silke/Documents/masterthesis/Results/2LTRclassifier/ltr_gaus_calibration.pdf')
 plt.show()
 
 # Record the end time
@@ -412,87 +457,6 @@ end_time = time.time()
 elapsed_time = end_time - start_time
 
 print("Elapsed time:", elapsed_time, "seconds")
-
-#----------------------------------------------------------------------------------------------
-#find false positives
-
-diff = [x-y for x, y in zip(y_test, originalpred)] #THIS CHANGED!!
-#diff = [x-y for x, y in zip(y_true, y_pred)] 
-false_pos_index  = [i for i, x in enumerate(diff) if x == -1]
-false_pos = X_test[false_pos_index]
-#find probability of being strong lens for each image
-prob_pos_diff=prob_pos[false_pos_index]
-
-#find rank
-l = sorted(prob_pos)
-rank = []
-#search which index in list 
-for i in range(len(prob_pos_diff)):
-    index = l.index(prob_pos_diff[i])
-    rank.append(index)
-
-#plot
-# Get the first 9 images
-images = false_pos[:9]
-
-# Create a 3x3 grid of subplots
-fig, axes = plt.subplots(3, 3, figsize=(10, 10))
-
-# Plot each image in the grid
-for i, ax in enumerate(axes.flat):
-    if i < len(false_pos):
-        img = false_pos[i]
-        
-        img_norm = (img - img.min()) / (img.max() - img.min())  # Normalize image
-        #img_norm = np.log1p(img_norm)
-        ax.imshow(img_norm, cmap='gray')  # Use grayscale colormap
-        ax.set_title(f" Prob of SL:{ np.round(prob_pos_diff[i],2)}, rank = {rank[i]}", fontsize=16)
-    ax.axis('off')  # Turn off axis
-    
-plt.tight_layout()  # Adjust layout
-cutoff = cm[0,0]+cm[0,1]
-fig.suptitle(f'False positive examples, cutoff = {cutoff}',y=1.05, fontsize = 20)
-plt.show()
-
-#----------------------------------------------------------------------------------------------
-#find false negatives
-
-diff = [x-y for x, y in zip(originalpred, y_test)] #THIS CHANGED!!
-#diff = [x-y for x, y in zip(y_pred, y_true)]
-false_neg_index  = [i for i, x in enumerate(diff) if x == -1]
-false_neg = X_test[false_neg_index]
-#find probability of being strong lens for each image
-prob_pos_diff=prob_pos[false_neg_index]
-
-#find rank
-l = sorted(prob_pos)
-rank = []
-#search which index in list 
-for i in range(len(prob_pos_diff)):
-    index = l.index(prob_pos_diff[i])
-    rank.append(index)
-
-#plot
-# Get the first 9 images
-images = false_neg[:9]
-
-# Create a 3x3 grid of subplots
-fig, axes = plt.subplots(3,3, figsize=(10, 10)) 
-
-# Plot each image in the grid
-for i, ax in enumerate(axes.flat):
-    if i < len(false_neg):
-        img = false_neg[i]
-        img_norm = (img - img.min()) / (img.max() - img.min())  # Normalize image
-        ax.imshow(img_norm, cmap='gray')  # Use grayscale colormap
-        ax.set_title(f" Prob of SL:{ np.round(prob_pos_diff[i],2)}, rank = {rank[i]}", fontsize=16)
-    ax.axis('off')  # Turn off axis
-    
-plt.tight_layout()  # Adjust layout
-cutoff = cm[0,0]+cm[0,1]
-fig.suptitle(f'False negative examples, cutoff = {cutoff}',y=1.05, fontsize = 20)
-plt.show()
-
 
 
 #-------------------- Save Results ----------------------------

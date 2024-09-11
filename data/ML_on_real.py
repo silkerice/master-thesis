@@ -122,9 +122,6 @@ def prepare_data(filename_SL, filename_random, IMG_SIZE, hdu = 0, keys = ['NAXIS
     #convert to rgb
     data = grayscale_to_rgb(data)
     
-    #convert to tensor
-    tensor_data = tf.convert_to_tensor(data)
-    
     #create labels
     n = len(fitsNames)
     nsl = len(fitsNames_SL)
@@ -132,6 +129,9 @@ def prepare_data(filename_SL, filename_random, IMG_SIZE, hdu = 0, keys = ['NAXIS
     print(nsl)
     #labels = create_labels(n, fitsNames)
     labels = np.concatenate((np.ones(nsl), np.zeros(n-nsl)))
+    
+    #convert to tensor
+    tensor_data = tf.convert_to_tensor(data)
     labels_tensor = tf.convert_to_tensor(labels, dtype=tf.int32)
     #create dataset
     dataset = tf.data.Dataset.from_tensor_slices(tensor_data)
@@ -238,14 +238,21 @@ def perform_ML(filename_SL, filename_random, IMG_SIZE, hdu=0, keys = ['NAXIS', '
     rgb3 = (0,6/255/100,48/100)
     rgb4 = (0,167/255, 1)
     def plot_hist(hist):
-        plt.plot(hist.history["accuracy"], color = rgb2)
+        plt.plot(hist.history["accuracy"], color ='magenta')
         #does not work:
-        plt.plot(hist.history["val_accuracy"], color = rgb1)
-        plt.title("CNN Accuracy")
-        plt.ylabel("accuracy")
-        plt.xlabel("epoch")
+        #plt.plot(hist.history["val_accuracy"], color = rgb1)
+        plt.ylabel("Accuracy")
+        plt.xlabel("Epoch")
         plt.ylim(0,1)
-        plt.legend(["Train", "Test"], loc="upper left")
+        plt.xlim(0,50)
+        #plt.legend(["Train"], loc="upper left")
+        #plt.legend(loc="lower right")
+        # Adjust the margins
+        plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
+        # Set the aspect ratio using gca()
+        #plt.gca().set_aspect('equal')  # 1:1 aspect ratio
+        # Save the plot as a PDF
+        plt.savefig('/Users/silke/Documents/masterthesis/Results/1CNNvsLTR/ml_accuracy.pdf')
         plt.show()
         
     plot_hist(hist)
@@ -273,20 +280,26 @@ def predictY(ds_test,model):
 def plot_roc_curve(y_test, y_pred):
     fpr, tpr, thresholds = roc_curve(y_test[:, 0], y_pred[:, 0])
     roc_auc = auc(fpr, tpr)
+    print(roc_auc)
     
     plt.figure()
-    plt.plot(fpr, tpr, color='darkorange', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
-    plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+    plt.plot(fpr, tpr, color='magenta', lw=2, label='ROC curve (area = 0.86)' % roc_auc)
+    plt.plot([0, 1], [0, 1], color='black', lw=2, linestyle='--')
     plt.xlim([0.0, 1.0])
-    plt.ylim([0.0, 1.05])
+    plt.ylim([0.0, 1.0])
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
-    plt.title('Receiver Operating Characteristic (ROC) - Class 0 - CNN')
+    #plt.title('Receiver Operating Characteristic (ROC) - Class 0 - CNN')
     plt.legend(loc="lower right")
+    #roc_display.ax_.set_aspect('equal')
+    # Adjust margins
+    plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
+    plt.gca().set_aspect('equal')  # 1:1 aspect ratio
+    # Save the plot as a PDF
+    plt.savefig('/Users/silke/Documents/masterthesis/Results/1CNNvsLTR/ml_roc_curve.pdf', format='pdf')
     plt.show()
     
     
-
 #tests
 filename_random = './randomcutouts2/41/*.fits'
 filename_SL = './selected_objects_4_stefan/*.fits'
@@ -303,15 +316,21 @@ rgb2 = (147/255, 14/255, 103/255)
 rgb3 = (0,6/255/100,48/100)
 rgb4 = (0,167/255, 1)
 def plot_hist(hist):
-        plt.plot(hist.history["accuracy"], color = rgb2)
-        plt.plot(hist.history["val_accuracy"], color = 'orange')
-        plt.title("CNN Accuracy", fontsize=18)
-        plt.ylabel("Accuracy", fontsize=14)
-        plt.xlabel("Epoch", fontsize=14)
-        plt.tick_params(axis='both', which='major', labelsize=12)
+        #plt.figure(figsize=(10,10))
+        plt.plot(hist.history["accuracy"], color = 'magenta', lw=2,)
+        #plt.plot(hist.history["val_accuracy"], color = 'orange')
+        plt.ylabel("Accuracy")
+        plt.xlabel("Epoch")
+        plt.tick_params(axis='both', which='major')
         plt.ylim(0.5,1)
-        plt.legend(["Train", "Test"], loc='lower right', fontsize=14)
-        plt.savefig('plot.png')
+        plt.xlim(0,50)
+        #plt.legend(loc="lower right")
+        # Adjust the margins
+        plt.subplots_adjust(left=0.05, right=0.95, top=0.9, bottom=0.1)
+        # Set the aspect ratio using gca()
+        plt.gca().set_aspect(100)  # 1:1 aspect ratio
+        # Save the plot as a PDF
+        plt.savefig('/Users/silke/Documents/masterthesis/Results/1CNNvsLTR/ml_accuracy.pdf')
         plt.show()
         
 plot_hist(hist)
@@ -320,9 +339,15 @@ plot_hist(hist)
 # Compute the ROC curve and AUC for class 0
 y_test,y_pred = predictY(ds_test,model)
 roc_display = plot_roc_curve(y_test,y_pred)
-roc_display.ax_.set_title('ROC curve CNN')
-roc_display.ax_.set_xlabel('False Positive Rate', fontsize=16)  # Increase fontsize as needed
-roc_display.ax_.set_ylabel('True Positive Rate', fontsize=16)
+#roc_display.ax_.set_title('ROC curve CNN')
+roc_display.ax_.set_xlabel('False Positive Rate')  # Increase fontsize as needed
+roc_display.ax_.set_ylabel('True Positive Rate',)
+# Set the aspect ratio to equal
+roc_display.ax_.set_aspect('equal')
+# Adjust margins
+plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
+# Save the plot as a PDF
+plt.savefig('/Users/silke/Documents/masterthesis/Results/1CNNvsLTR/ml_roc_curve.pdf', format='pdf')
 plt.show()
 
 # Record the end time
