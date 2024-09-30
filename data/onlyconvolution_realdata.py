@@ -477,7 +477,7 @@ end_time = time.time()
 elapsed_time = end_time - start_time
 
 print("Elapsed time:", elapsed_time, "seconds")
-
+'''
 #----------------------------------------------------------------------------------------------
 #find false positives
 
@@ -557,7 +557,7 @@ plt.tight_layout()  # Adjust layout
 cutoff = cm[0,0]+cm[0,1]
 fig.suptitle(f'False negative examples, cutoff = {cutoff}',y=1.05, fontsize = 20)
 plt.show()
-
+'''
 
 
 #-------------------- Save Results ----------------------------
@@ -576,5 +576,26 @@ with open('LTRfpr_SVM.txt', 'w') as f:  # 'f' is defined within this block
 with open('LTRtpr_SVM.txt', 'w') as f:  # 'f' is defined within this block
     for item in tpr:
         f.write(f"{item}\n")
-    
 
+#-------------------- Threshold plot ----------------------------
+
+# Compute the false positive rate (fpr), true positive rate (tpr), and thresholds
+fpr, tpr, thresholds = roc_curve(y_true, y_scores)
+
+
+# Plot the false positive rate and false negative rate against thresholds
+plt.figure()
+plt.plot(thresholds, fpr, label='False Negative Rate', color='blue')
+plt.plot(1-thresholds, tpr, label='False Positive Rate', color='red')
+plt.xlabel('Threshold')
+plt.ylabel('Rate')
+plt.title('False Positive and False Negative Rates per Threshold')
+plt.legend()
+plt.grid(True)
+# Adjust the margins
+plt.subplots_adjust(left=0.05, right=0.95, top=0.9, bottom=0.1)
+# Set the aspect ratio using gca()
+plt.gca().set_aspect('equal')  # 1:1 aspect ratio
+# Save the plot as a PDF
+plt.savefig('/Users/silke/Documents/masterthesis/Results/1CNNvsLTR/ltr_thresholds.pdf')
+plt.show()

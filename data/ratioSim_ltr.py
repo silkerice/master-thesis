@@ -194,7 +194,7 @@ def add_noise(arr, new_size=66):
 #----------------------------------------------------------------------------------------------
 filename_SL_sim = './Lens_simulations/*.fits'
 filename_SL_real = './selected_objects_4_stefan/*.fits'
-filename_random = './randomcutouts2/21/*.fits'
+filename_random = './randomcutouts2/41/*.fits'
 IMG_SIZE = 224
 hdu = 0
 keys = ['NAXIS', 'FILTER']
@@ -213,8 +213,8 @@ for i in range(len(data_SL_sim)):
     arr = data_SL_sim[i]
     data_SL_sim[i] = add_noise(arr)
 
-r_real = 50
-r_sim = 450
+r_real = 1
+r_sim = 623
 #put together
 data = np.concatenate((np.array(data_SL_sim[0:r_sim]), np.array(data_SL_real[0:r_real]), np.array(data_random ))) 
 fitsNames = fitsNames_SL_sim[0:r_sim]+fitsNames_SL_real[0:r_real] + fitsNames_random
@@ -395,14 +395,19 @@ fpr, tpr, thresholds = roc_curve(y_test, y_scores)
 roc_auc = auc(fpr, tpr)
 
 plt.figure()
-plt.plot(fpr, tpr, color='magenta', lw=2, label='ROC curve (area = 0.92)' )
-plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+plt.plot(fpr, tpr, color='magenta', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
+plt.plot([0, 1], [0, 1], color='black', lw=2, linestyle='--')
 plt.xlim([0.0, 1.0])
-plt.ylim([0.0, 1.05])
+plt.ylim([0.0, 1.0])
+# Adjust the margins
+plt.subplots_adjust(left=0.05, right=0.95, top=0.9, bottom=0.1)
+# Set the aspect ratio using gca()
+plt.gca().set_aspect('equal')  # 1:1 aspect ratio
 plt.xlabel('False Positive Rate')
 plt.ylabel('True Positive Rate')
-plt.title('Receiver Operating Characteristic (ROC)')
 plt.legend(loc="lower right")
+# Save the plot as a PDF
+plt.savefig('/Users/silke/Documents/masterthesis/Results/4LTRsimulations/trainsim_testsim_roc_curve.pdf')
 plt.show()
 
 #----------------------------------------------------------------------------------------------
@@ -438,13 +443,20 @@ prob_pos = svm_model.predict_proba(X_test_flattened)[:, 1]
 fraction_of_positives, mean_predicted_value = calibration_curve(y_test, prob_pos, n_bins=5)
 
 
-plt.figure(figsize=(8, 8))
+plt.figure()
 plt.plot(mean_predicted_value, fraction_of_positives, "s-", label="SVM", color = 'magenta')
 plt.plot([0, 1], [0, 1], "k--", label="Perfectly calibrated")
-plt.xlabel("Mean predicted probability",fontsize = 14)
-plt.ylabel("Fraction of positives",fontsize = 14)
-plt.title("Calibration plot - SVM", fontsize = 16)
-plt.legend(fontsize = 14)
+plt.xlabel("Mean predicted probability")
+plt.ylabel("Fraction of positives")
+# Adjust the margins
+plt.subplots_adjust(left=0.05, right=0.95, top=0.9, bottom=0.1)
+# Set the aspect ratio using gca()
+plt.gca().set_aspect('equal')  # 1:1 aspect ratio
+plt.xlabel("Mean predicted probability")
+plt.ylabel("Fraction of positives")
+plt.legend(loc="lower right")
+# Save the plot as a PDF
+plt.savefig('/Users/silke/Documents/masterthesis/Results/4LTRsimulations/trainsim_testsim_cal_curve.pdf')
 plt.show()
 
 # Record the end time
@@ -455,6 +467,7 @@ elapsed_time = end_time - start_time
 
 print("Elapsed time:", elapsed_time, "seconds")
 
+'''
 #----------------------------------------------------------------------------------------------
 #find false positives
 
@@ -545,7 +558,7 @@ tn = y_true.count(0)
 fpr = fpr(fp,tn)
 
 print('False positive rate: ', fpr)
-
+'''
 #----------------------------------------------------------------------------------------------
 
 
@@ -572,3 +585,19 @@ plt.savefig('plot.png', bbox_inches='tight')  # Save as a PNG file
 plt.show()
 
 
+#-------------------- Save Results ----------------------------
+
+tosave = np.array(['Accuracy ', accuracy, 'Runtime ', elapsed_time, 'roc_auc ', roc_auc])
+                  # , 'y_test ', y_test, 'y_pred', y_pred])
+
+with open('acc_run_trainsim_testsim', 'w') as f:  # 'f' is defined within this block
+    for item in tosave:
+        f.write(f"{item}\n")
+
+with open('fpr_trainsim_testsim.txt', 'w') as f:  # 'f' is defined within this block
+    for item in fpr:
+        f.write(f"{item}\n")
+
+with open('tpr_trainsim_testsim.txt', 'w') as f:  # 'f' is defined within this block
+    for item in tpr:
+        f.write(f"{item}\n")

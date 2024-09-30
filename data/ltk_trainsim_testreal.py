@@ -190,25 +190,36 @@ NUM_CLASSES = 2
 #----------------------------------------------------------------------------------------------
 
 # filename is a string, stronglens is 1 or 0
-data_SL, fitsNames_SL = get_data_from_file(filename_SL, hdu=hdu, keys=keys) #, hdu, keys
+data_SL_sim, fitsNames_SL_sim = get_data_from_file(filename_SL, hdu=hdu, keys=keys) #, hdu, keys
 data_random, fitsNames_random = get_data_from_file(filename_random, hdu=hdu, keys=keys)
 data_SL_real, fitsNames_SL_real = get_data_from_file(filename_SL_real, hdu=hdu, keys=keys) 
 
-for i in range(len(data_SL)):
-    arr = data_SL[i]
-    data_SL[i] = add_noise(arr)
+for i in range(len(data_SL_sim)):
+    arr = data_SL_sim[i]
+    data_SL_sim[i] = add_noise(arr)
         
-        
+
 # Split data_random into two parts: one for training and one for testing
-split_index = int(0.8 * len(data_random))
+split_index = int(0.7 * len(data_random))
 data_random_train = data_random[:split_index]
 fitsNames_random_train = fitsNames_random[:split_index]
 
 data_random_test = data_random[split_index:]
 fitsNames_random_test = fitsNames_random[split_index:]
 
+#Create training set SL
+r_real = 254
+r_real = int(0.7 * r_real)
+print('number of real SL in train', r_real)
+r_sim = 623
+print('number of sim SL in train', r_sim)
+
+#put together
+data_SL_train = np.concatenate((np.array(data_SL_sim[0:r_sim]), np.array(data_SL_real[0:r_real])) )
+fitsNames_SL = fitsNames_SL_sim[0:r_sim]+fitsNames_SL_real[0:r_real]
+
 # Combine data for training: data_SL + data_random_train
-data_train = np.concatenate((np.array(data_SL), np.array(data_random_train))) 
+data_train = np.concatenate((np.array(data_SL_train), np.array(data_random_train))) 
 fitsNames_train = fitsNames_SL + fitsNames_random_train
 
 # Normalize and make positive
@@ -232,7 +243,8 @@ shuffled_train_images, shuffled_train_targets = zip(*combined_train_data)
 shuffled_train_data = Bunch(images=np.array(shuffled_train_images), targets=np.array(shuffled_train_targets))
 
 # Normalize the test data and make positive
-data_SL_real = normalize_data(make_data_positive(data_SL_real))
+data_SL_real = normalize_data(make_data_positive(data_SL_real[r_real:]))
+print('number of real SL in test', len(data_SL_real))
 data_random_test = normalize_data(make_data_positive(data_random_test))
 
 # Convert test data to rgb
@@ -244,9 +256,9 @@ data_test = np.concatenate((np.array(data_SL_real), np.array(data_random_test)))
 fitsNames_test = fitsNames_SL_real + fitsNames_random_test
 
 # Create labels for test data
-nsl_test = len(fitsNames_SL_real)
-n_test = len(fitsNames_test)
-labels_test = np.concatenate((np.ones(nsl_test), np.zeros(n_test - nsl_test)))
+nsl_test = len(data_SL_real)
+nnsl_test = len(data_random_test)
+labels_test = np.concatenate((np.ones(nsl_test), np.zeros(nnsl_test)))
 
 # Create bunch object for test data
 bunchobject_test = Bunch(images=data_test, targets=labels_test)
@@ -261,6 +273,12 @@ X_test_rescaled = tf.image.resize(X_test, (IMG_SIZE, IMG_SIZE))
 
 print("Shape of X_train_rescaled:", X_train_rescaled.shape)
 print("Shape of X_test_rescaled:", X_test_rescaled.shape)
+print("Shape of X_test:", X_test.shape)
+
+print("Length of data_SL_real:", len(data_SL_real))
+print("Length of data_random_test:", len(data_random_test))
+print("Length of data_test (concatenated):", len(data_test))
+print("Length of labels_test:", len(labels_test))
 
 #----------------------------------------------------------------------------------------------
 
@@ -370,15 +388,21 @@ fpr, tpr, thresholds = roc_curve(y_test, y_scores)
 roc_auc = auc(fpr, tpr)
 
 plt.figure()
-plt.plot(fpr, tpr, color='magenta', lw=2, label='ROC curve (area = 0.827)')
-plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+plt.plot(fpr, tpr, color='magenta', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
+plt.plot([0, 1], [0, 1], color='black', lw=2, linestyle='--')
 plt.xlim([0.0, 1.0])
-plt.ylim([0.0, 1.05])
+plt.ylim([0.0, 1.0])
+# Adjust the margins
+plt.subplots_adjust(left=0.05, right=0.95, top=0.9, bottom=0.1)
+# Set the aspect ratio using gca()
+plt.gca().set_aspect('equal')  # 1:1 aspect ratio
 plt.xlabel('False Positive Rate')
 plt.ylabel('True Positive Rate')
-plt.title('AUC curve')
 plt.legend(loc="lower right")
+# Save the plot as a PDF
+plt.savefig('/Users/silke/Documents/masterthesis/Results/4LTRsimulations/train7525_testreal_roc_curve.pdf')
 plt.show()
+
 
 #----------------------------------------------------------------------------------------------
 #calibration of classifiers
@@ -413,14 +437,22 @@ prob_pos = svm_model.predict_proba(X_test_flattened)[:, 1]
 fraction_of_positives, mean_predicted_value = calibration_curve(y_test, prob_pos, n_bins=5)
 
 
-plt.figure(figsize=(8, 8))
+plt.figure()
 plt.plot(mean_predicted_value, fraction_of_positives, "s-", label="SVM", color = 'magenta')
 plt.plot([0, 1], [0, 1], "k--", label="Perfectly calibrated")
-plt.xlabel("Mean predicted probability",fontsize = 14)
-plt.ylabel("Fraction of positives",fontsize = 14)
-plt.title("Calibration plot - SVM", fontsize = 16)
-plt.legend(fontsize = 14)
+plt.xlabel("Mean predicted probability")
+plt.ylabel("Fraction of positives")
+# Adjust the margins
+plt.subplots_adjust(left=0.05, right=0.95, top=0.9, bottom=0.1)
+# Set the aspect ratio using gca()
+plt.gca().set_aspect('equal')  # 1:1 aspect ratio
+plt.xlabel("Mean predicted probability")
+plt.ylabel("Fraction of positives")
+plt.legend(loc="lower right")
+# Save the plot as a PDF
+plt.savefig('/Users/silke/Documents/masterthesis/Results/4LTRsimulations/train7525_testreal_cal_curve.pdf')
 plt.show()
+
 
 # Record the end time
 end_time = time.time()
@@ -430,6 +462,7 @@ elapsed_time = end_time - start_time
 
 print("Elapsed time:", elapsed_time, "seconds")
 
+'''
 #----------------------------------------------------------------------------------------------
 #find false positives
 
@@ -496,3 +529,23 @@ tn = y_true.count(0)
 fpr = fpr(fp,tn)
 
 print('False positive rate: ', fpr)
+'''
+
+
+
+#-------------------- Save Results ----------------------------
+
+tosave = np.array(['Accuracy ', accuracy, 'Runtime ', elapsed_time, 'roc_auc ', roc_auc])
+                  # , 'y_test ', y_test, 'y_pred', y_pred])
+
+with open('acc_run_train7525_testreal', 'w') as f:  # 'f' is defined within this block
+    for item in tosave:
+        f.write(f"{item}\n")
+
+with open('fpr_train7525_testreal.txt', 'w') as f:  # 'f' is defined within this block
+    for item in fpr:
+        f.write(f"{item}\n")
+
+with open('tpr_train7525_testreal.txt', 'w') as f:  # 'f' is defined within this block
+    for item in tpr:
+        f.write(f"{item}\n")

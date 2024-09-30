@@ -82,7 +82,10 @@ data_SL, fitsNames_SL = get_data_from_file(filename_SL, hdu=hdu, keys=keys) #, h
 #adding noise along the edges
 
 plt.imshow(data_SL[0], cmap='gray')
-plt.title('Original simulation')
+#plt.title('Original simulation')
+plt.xticks([])  # Remove x-axis ticks
+plt.yticks([])  # Remove y-axis ticks
+plt.savefig('/Users/silke/Documents/masterthesis/Results/4LTRsimulations/original.pdf')
 plt.show()
 
 #make histogram
@@ -116,10 +119,13 @@ mask = np.zeros((new_size, new_size))
 mask[start_idx:start_idx + 44, start_idx:start_idx + 44] = 1
 new_image = new_image * mask + noise * (1 - mask)
 
-# Plot the new image
-#plt.imshow(new_image, cmap='gray')
+#Plot the new image
+plt.imshow(new_image, cmap='gray')
 #plt.title('Extended Image with Gaussian Noise')
-#plt.show()
+plt.xticks([])  # Remove x-axis ticks
+plt.yticks([])  # Remove y-axis ticks
+plt.savefig('/Users/silke/Documents/masterthesis/Results/4LTRsimulations/extended.pdf')
+plt.show()
 
 #-------------------------------------------------------------------------------------
 #automate the process on top
@@ -189,7 +195,9 @@ for i, ax in enumerate(axes.flat):
     ax.axis('off')  # Turn off axis
     
 plt.tight_layout()  # Adjust layout
-fig.suptitle('example simulations',y=1.05, fontsize = 20)
+#fig.suptitle('example simulations',y=1.05, fontsize = 20)
+plt.xticks([])  # Remove x-axis ticks
+plt.yticks([])  # Remove y-axis ticks
 plt.show()
 
 #---------------------------------------------------------------------------------------

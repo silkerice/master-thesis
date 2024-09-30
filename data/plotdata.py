@@ -60,43 +60,46 @@ for fitsName in glob.glob(filename):
 
 
 
-# List of image file paths
-image_files = [
-    'correctSL1.png', 'correctSL2.png', 'correctSL3.png',
-    'correctNSL1.png', 'correctNSL2.png', 
-    'SLasNSL.png', 'SLasNSL2.png', 'NSLasSL2.png', 'NSLasSL.png'
-]
-
-# List of subtitles for each image 
-subtitles = [
-    'SL classified as SL', 'SL classified as SL', 'SL classified as SL',
-    'NSL classified as NSL', 'NSL classified as NSL', 'SL misclassified as NSL',
-    'SL misclassified as NSL', 'NSL misclassified as SL', 'NSL misclassified as SL'
-]
-
-import matplotlib.image as mpimg
-
-# Create a figure and a 3x3 grid of subplots
-fig, axs = plt.subplots(3, 3, figsize=(10, 10))
-
-# Loop over the image files and axes to plot each image
-for ax, img_path, subtitle in zip(axs.flat, image_files, subtitles):
-    # Load the image
-    img = mpimg.imread(img_path)
-    # Display the image
-    ax.imshow(img)
-    # Set subtitle for each subplot
-    ax.set_title(subtitle, fontsize=16)
-    # Remove axis labels
-    ax.axis('off')
-
-plt.suptitle('LTR classification examples', fontsize = 18)
-# Adjust layout
-plt.savefig('plot.png')
-plt.tight_layout()
-
-# Show the plot
-plt.show()
-
 #---------------------------------------------------------------------------------------
 head1 = fits.getheader('selected_objects_4_stefan/WDR3_candID2017253021765_r.fits')
+
+from astropy.io import fits
+
+def plot_fits_from_directory(directory):
+    # List all files in the directory
+    files = os.listdir(directory)
+
+    # Filter for FITS files
+    fits_files = [f for f in files if f.lower().endswith('.fits')]
+
+    # Select up to 9 FITS files
+    files_to_plot = fits_files[30:34]#04
+
+    # Create a 3x3 grid for plotting
+    fig, axes = plt.subplots(2,2)
+    axes = axes.flatten()  # Flatten the 2D array to 1D for easy indexing
+
+    for ax, fits_file in zip(axes, files_to_plot):
+        fits_path = os.path.join(directory, fits_file)
+        
+        # Open the FITS file and read the data
+        with fits.open(fits_path) as hdul:
+            # Assuming the data is in the first extension
+            data = hdul[0].data
+        
+        # Plot the data
+        ax.imshow(data, cmap='gray', origin='lower')
+        ax.axis('off')  # Hide the axis
+
+    # Hide any unused axes if there are less than 9 images
+    for ax in axes[len(files_to_plot):]:
+        ax.axis('off')
+
+    plt.tight_layout()
+    # Save the figure as a PDF
+    plt.savefig('ex_nsl', format='pdf')
+    plt.show()
+
+# Replace 'your_directory_path' with the path to your directory
+directory_path = 'randomcutouts2/11/'
+plot_fits_from_directory(directory_path)

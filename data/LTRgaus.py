@@ -310,14 +310,8 @@ X_test_flattened = X_test_conv.reshape(X_test_conv.shape[0], -1)
 
 # Now, you can use X_train_flattened and X_test_flattened as inputs to your scikit-learn model
 
-# Let's use a simple Support Vector Machine (SVM) as an example
-#svm_model = svm.SVC(probability = True)
-
 #use gaussian
 svm_model = GaussianNB()
-
-#use random forest
-#svm_model = RandomForestClassifier()
 
 #logistic regression
 #svm_model= LogisticRegression()
